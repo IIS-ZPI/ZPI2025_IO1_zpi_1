@@ -32,6 +32,7 @@ class ArithmeticsMult(IArithmeticsMult):
     def multiplication(self, a, b):
         return a * b
 #komentarz testera 3
+#wazny komentarz testera do zadania numer 6
 class ArithmeticDiv(IArithmeticsDiv):
     def division(self, a, b):
         if b == 0:
