@@ -12,6 +12,7 @@ class ArithmeticsAdd(IArithmeticsAdd):
 class IArithmeticsDiff(ABC):
     @abstractmethod
     def Difference(self, A : float, B : float) -> float:
+        # Comment
         pass
 
 class ArithmeticsDiff(IArithmeticsDiff):
