@@ -37,3 +37,5 @@ class ArithmeticDiv(IArithmeticsDiv):
         if b == 0:
             print("ERROR, cannot divide by 0")
         return a / b
+
+# Tekst 3
