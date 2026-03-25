@@ -8,7 +8,8 @@ class IArithmeticsAdd(ABC):
 class ArithmeticsAdd(IArithmeticsAdd):
     def Addition(self, a, b):
         return a + b
-    
+
+# tekst 2
 class IArithmeticsDiff(ABC):
     @abstractmethod
     def Difference(self, A : float, B : float) -> float:
@@ -37,3 +38,5 @@ class ArithmeticDiv(IArithmeticsDiv):
         if b == 0:
             print("ERROR, cannot divide by 0")
         return a / b
+
+# Tekst 3
