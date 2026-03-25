@@ -17,7 +17,7 @@ class IArithmeticsDiff(ABC):
 class ArithmeticsDiff(IArithmeticsDiff):
     def Difference(self, A : float, B : float) -> float:
         return A - B
-
+#komentarz testera 2
 class IArithmeticsMult(ABC):
     @abstractmethod
     def multiplication(self, a, b):
