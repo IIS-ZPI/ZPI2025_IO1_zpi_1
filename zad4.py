@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-#komentarz wiktora 1
+#komentarz wiktora 1 273489237498234723
 class IArithmeticsAdd(ABC):
     @abstractmethod
     def Addition(self, a,b):
@@ -12,13 +12,16 @@ class ArithmeticsAdd(IArithmeticsAdd):
 class IArithmeticsDiff(ABC):
     @abstractmethod
     def Difference(self, A : float, B : float) -> float:
+        # Comment
         pass
 
 class ArithmeticsDiff(IArithmeticsDiff):
     def Difference(self, A : float, B : float) -> float:
         return A - B
 #komentarz testera 2 37298347237468238947892347
+
 class IArithmeticsMult(ABC):
+    # Some comment
     @abstractmethod
     def multiplication(self, a, b):
         pass
@@ -28,6 +31,7 @@ class IArithmeticsDiv(ABC):
     def division(self, a, b):
         pass
 
+# Unnecessary comment 1
 class ArithmeticsMult(IArithmeticsMult):
     def multiplication(self, a, b):
         return a * b
