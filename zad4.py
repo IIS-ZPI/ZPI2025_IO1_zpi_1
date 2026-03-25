@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
 #komentarz wiktora 1
+
+# Bardzo ważny komentarz
 class IArithmeticsAdd(ABC):
     @abstractmethod
     def Addition(self, a,b):
