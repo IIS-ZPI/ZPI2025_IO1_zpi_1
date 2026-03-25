@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-
+#komentarz wiktora 1
 class IArithmeticsAdd(ABC):
     @abstractmethod
     def Addition(self, a,b):
