@@ -1,5 +1,13 @@
 from abc import ABC, abstractmethod
 
+class IArithmeticsDiff():
+    @abstractmethod
+    def Difference(self, A : float, B : float) -> float:
+        pass
+
+class ArithmeticsDiff(IArithmeticsDiff):
+    def Difference(self, A : float, B : float) -> float:
+        return A - B
 
 class IArithmeticsMult(ABC):
     @abstractmethod
@@ -20,5 +28,3 @@ class ArithmeticDiv(IArithmeticsDiv):
         if b == 0:
             print("ERROR, cannot divide by 0")
         return a / b
-
-
