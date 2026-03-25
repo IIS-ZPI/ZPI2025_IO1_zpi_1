@@ -15,7 +15,7 @@ class IArithmeticsDiff(ABC):
         pass
 
 class ArithmeticsDiff(IArithmeticsDiff):
-    def Difference(self, A : float, B : float) -> float:
+    def Difference(self, A : float, B : float) -> float: # Metoda odejmuje dwie liczby zmiennoprzecinkowe
         return A - B
 
 class IArithmeticsMult(ABC):
