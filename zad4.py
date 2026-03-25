@@ -31,7 +31,7 @@ class IArithmeticsDiv(ABC):
 class ArithmeticsMult(IArithmeticsMult):
     def multiplication(self, a, b):
         return a * b
-#komentarz testera 3
+#komentarz testera 3 34789247892347923748923
 class ArithmeticDiv(IArithmeticsDiv):
     def division(self, a, b):
         if b == 0:
