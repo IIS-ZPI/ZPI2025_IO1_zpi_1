@@ -8,3 +8,5 @@ class IArithmeticsAdd(ABC):
 class ArithmeticsAdd(IArithmeticsAdd):
     def Addition(self, a, b):
         return a + b
+    
+#poprawka
