@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 
+# Bardzo ważny komentarz
 class IArithmeticsAdd(ABC):
     @abstractmethod
     def Addition(self, a,b):
@@ -8,14 +9,15 @@ class IArithmeticsAdd(ABC):
 class ArithmeticsAdd(IArithmeticsAdd):
     def Addition(self, a, b):
         return a + b
-    
+
+# tekst 2
 class IArithmeticsDiff(ABC):
     @abstractmethod
     def Difference(self, A : float, B : float) -> float:
         pass
 
 class ArithmeticsDiff(IArithmeticsDiff):
-    def Difference(self, A : float, B : float) -> float:
+    def Difference(self, A : float, B : float) -> float: # Metoda odejmuje dwie liczby zmiennoprzecinkowe
         return A - B
 
 class IArithmeticsMult(ABC):
@@ -37,3 +39,5 @@ class ArithmeticDiv(IArithmeticsDiv):
         if b == 0:
             print("ERROR, cannot divide by 0")
         return a / b
+
+# Tekst 3
