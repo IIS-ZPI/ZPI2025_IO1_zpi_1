@@ -28,6 +28,7 @@ class IArithmeticsDiv(ABC):
     def division(self, a, b):
         pass
 
+# Unnecessary comment 1
 class ArithmeticsMult(IArithmeticsMult):
     def multiplication(self, a, b):
         return a * b
