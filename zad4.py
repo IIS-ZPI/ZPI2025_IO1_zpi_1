@@ -19,6 +19,7 @@ class ArithmeticsDiff(IArithmeticsDiff):
         return A - B
 
 class IArithmeticsMult(ABC):
+    # Some comment
     @abstractmethod
     def multiplication(self, a, b):
         pass
