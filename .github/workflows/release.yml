@@ -1,0 +1,67 @@
+name: CI & Release
+
+on:
+  push:
+    branches: [release, master, develop]
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: |
+          pip install -r requirements.txt pytest
+          python -m pytest
+
+  build:
+    needs: test
+    if: github.ref == 'refs/heads/release'
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: |
+          pip install -r requirements.txt pyinstaller
+          pyinstaller --onefile --name app-${{ matrix.os }} src/app/main.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bin-${{ matrix.os }}
+          path: dist/app-*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: version
+        run: |
+          git fetch --tags
+          latest=$(git tag --sort=-v:refname | head -n 1 || echo "v2.0.0")
+          new=$(echo $latest | awk -F. -v OFS=. '{$NF++; print}')
+          echo "tag=${new:-v2.0.0}" >> $GITHUB_OUTPUT
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - run: |
+          git config user.name "github-actions"
+          git config user.email "action@github.com"
+          git tag ${{ steps.version.outputs.tag }}
+          git push origin ${{ steps.version.outputs.tag }}
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          files: dist/app-*
