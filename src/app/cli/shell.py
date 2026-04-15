@@ -11,11 +11,25 @@ class CERCASShell(cmd.Cmd):
         self.app = CERCAS()
 
     # exit
-    def do_exit(self, arg):
+    def do_exit(self, arg) -> None:
+        """
+        exit
+        Description: Exit the shell
+        Parameters: None
+
+        """
         exit(0)
 
     # set_pair <base>/<quote>
-    def do_set_pair(self, arg):
+    def do_set_pair(self, arg) -> None:
+        """
+        set_pair <base>/<quote>
+        Description: Set the currency pairs used for analysis.
+        Parameters:
+        ● base - base currency code in ISO 4217 format (e.g. EUR)
+        ● quote - quoted currency code in ISO 4217 format (e.g. USD)
+
+        """
         try:
             base, quote = arg.strip().split('/')
             self.app.set_pair(base, quote)
@@ -23,15 +37,30 @@ class CERCASShell(cmd.Cmd):
             print("Usage: set_pair <base>/<quote> (example: EUR/USD)")
 
     # set_period <start_date> <end_date>
-    def do_set_period(self, arg):
+    def do_set_period(self, arg) -> None:
+        """
+        set_period <start_date> <end_date>
+        Description: Define the time range for the analysis.
+        Parameters:
+        ● start_date - start date in yyyy-mm-dd format
+        ● end_date - end date in yyyy-mm-dd format
+
+        """
         try:
             start_date, end_date = arg.strip().split(' ')
             self.app.set_period(start_date, end_date)
         except ValueError:
             print("Usage: set_period <start_date> <end_date>")
 
-    # set_type <type>
-    def do_set_type(self, arg):
+    # set_aggregation <type>
+    def do_set_aggregation(self, arg) -> None:
+        """
+        set_aggregation <type>
+        Description: Set the aggregation level for the analysis.
+        Parameters:
+        ● type - aggregation type [MONTHLY / QUARTERLY]
+
+        """
         try:
             type = arg
             self.app.set_type(type)
@@ -39,7 +68,13 @@ class CERCASShell(cmd.Cmd):
             print("Usage: set_type <type>")
 
     # set_interval <number>
-    def do_set_interval(self, arg):
+    def do_set_interval(self, arg) -> None:
+        """
+        Description: Define the number of intervals used to process data.
+        Parameters:
+        ● number - positive integer specifying the number of intervals
+
+        """
         try:
             number = arg
             self.app.set_interval(number)
@@ -47,7 +82,14 @@ class CERCASShell(cmd.Cmd):
             print("Usage: set_interval <number>")
 
     # export <file_path>
-    def do_export(self, arg):
+    def do_export(self, arg) -> None:
+        """
+        export <file_path>
+        Description: Export the analysis results to a CSV file.
+        Parameters:
+        ● file_path - path to the output CSV file
+
+        """
         try:
             file_path = arg
             self.app.export(file_path)
@@ -55,12 +97,24 @@ class CERCASShell(cmd.Cmd):
             print("Usage: export <file_path>")
 
     # run_analysis
-    def do_run_analysis(self):
+    def do_run_analysis(self, arg) -> None:
+        """
+        run_analysis
+        Description: Execute the analysis based on the currently defined parameters.
+        Parameters: None
+
+        """
         try:
             self.app.run_analysis()
         except ValueError:
             print("Usage: run_analysis")
 
     # show_config
-    def do_show_config(self, arg):
+    def do_show_config(self, arg) -> None:
+        """
+        show_config
+        Description: Display the current analysis configuration.
+        Parameters: None
+
+        """
         self.app.show_config()
