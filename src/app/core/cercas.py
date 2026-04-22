@@ -27,21 +27,36 @@ class CERCAS:
         self.base = base.upper()
         self.quote = quote.upper()
 
+        print("Pair set successfully")
 
     def set_period(self, start_date: datetime, end_date: datetime) -> None:
         if end_date < start_date:
-            raise ValueError("end_date must be greater than start_date")
+            raise ValueError(
+                f"start_date ({start_date}) must be greater than end_date ({end_date})"
+            )
+
+        if start_date > datetime.now():
+            raise ValueError(
+                f"start_date can't be in future."
+            )
+
         self.start_date = start_date
         self.end_date = end_date
 
+        print("Period set successfully")
+
     def set_type(self, type: AggregationType) -> None:
         self.aggregation_type = type
+
+        print("Aggregation type set successfully")
 
     def set_interval(self, number: int) -> None:
         if number >= 0:
             self.number_of_intervals = number
         else:
             raise ValueError("Interval must be positive")
+
+        print("Interval set successfully")
 
     def run_analysis(self) -> None:
         pass
