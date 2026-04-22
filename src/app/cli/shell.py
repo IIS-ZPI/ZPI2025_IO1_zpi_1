@@ -67,11 +67,14 @@ class CERCASShell(cmd.Cmd):
         ● type - aggregation type [MONTHLY / QUARTERLY]
 
         """
-        try:
-            aggregation_type : AggregationType = arg
-            self.app.set_type(aggregation_type)
-        except ValueError:
-            print("Usage: set_type <type>")
+
+        if arg.upper() == "MONTHLY":
+            self.app.set_type(AggregationType.MONTHLY)
+        elif arg.upper() == "QUARTERLY":
+            self.app.set_type(AggregationType.QUARTERLY)
+        else:
+            raise ValueError("Invalid aggregation type")
+            #print("Usage: set_type <type>")
 
     # set_interval <number>
     def do_set_interval(self, arg) -> None:
@@ -82,7 +85,7 @@ class CERCASShell(cmd.Cmd):
 
         """
         try:
-            number : int = arg
+            number : int = int(arg)
             self.app.set_interval(number)
         except ValueError:
             print("Usage: set_interval <number>")
