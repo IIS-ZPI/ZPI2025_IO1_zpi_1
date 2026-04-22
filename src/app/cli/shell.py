@@ -1,4 +1,6 @@
 import cmd
+
+from src.app.core.aggregation_type import AggregationType
 from src.app.core.cercas import CERCAS
 from datetime import datetime
 
@@ -48,6 +50,10 @@ class CERCASShell(cmd.Cmd):
         """
         try:
             start_date, end_date = arg.strip().split(' ')
+            y, m, d = start_date.split('-')
+            start_date = datetime(int(y), int(m), int(d))
+            y, m, d = end_date.split('-')
+            end_date = datetime(int(y), int(m), int(d))
             self.app.set_period(start_date, end_date)
         except ValueError:
             print("Usage: set_period <start_date> <end_date>")
@@ -62,8 +68,8 @@ class CERCASShell(cmd.Cmd):
 
         """
         try:
-            type = arg
-            self.app.set_type(type)
+            aggregation_type : AggregationType = arg
+            self.app.set_type(aggregation_type)
         except ValueError:
             print("Usage: set_type <type>")
 
@@ -76,7 +82,7 @@ class CERCASShell(cmd.Cmd):
 
         """
         try:
-            number = arg
+            number : int = arg
             self.app.set_interval(number)
         except ValueError:
             print("Usage: set_interval <number>")

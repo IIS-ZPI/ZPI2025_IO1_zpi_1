@@ -1,12 +1,17 @@
+from datetime import datetime
+from requests import get
+
 from src.app.core.aggregation_type import AggregationType
 
 
 class CERCAS:
     def __init__(self):
         self.base: str | None = None
+        self.base_table: str | None = None
         self.quote: str | None = None
-        self.start_date: str | None = None
-        self.end_date: str | None = None
+        self.quote_table: str | None = None
+        self.start_date: datetime | None = None
+        self.end_date: datetime | None = None
         self.aggregation_type: AggregationType | None = None
         self.number_of_intervals: int | None = None
 
@@ -15,8 +20,12 @@ class CERCAS:
         self.base = base.upper()
         self.quote = quote.upper()
 
-    def set_period(self, start_date: str, end_date: str) -> None:
-        #TODO: Add checking date format. Should be yyyy-mm-dd.
+    def __check_table(self, base: str) -> None:
+        request = get(f"https://api.nbp.pl/api/exchangerates/rates/A/{base}/")
+
+    def set_period(self, start_date: datetime, end_date: datetime) -> None:
+        if end_date < start_date:
+            raise ValueError("end_date must be greater than start_date")
         self.start_date = start_date
         self.end_date = end_date
 
@@ -47,8 +56,8 @@ class CERCAS:
             print(f"Start date isn't set.")
             print(f"End date isn't set.")
         else:
-            print(f"Start date is: {self.start_date}")
-            print(f"End date is: {self.end_date}")
+            print(f"Start date is: {self.start_date.date()}")
+            print(f"End date is: {self.end_date.date()}")
 
         if self.aggregation_type is None:
             print(f"Aggregation level for the analysis isn't set.")

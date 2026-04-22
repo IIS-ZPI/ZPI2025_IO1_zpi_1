@@ -2,6 +2,7 @@
 # should be deleted later
 # run method is not necessary to work, main is enough
 from src.app.cli.shell import CERCASShell
+from src.app.core.tempApi import query
 
 
 def add(a, b):
@@ -19,6 +20,7 @@ def old_run():
 
 def run():
     CERCASShell().cmdloop()
+    #query("A", "USD", "2020-01-02", "2020-01-02")
 
 if __name__ == "__main__":
     run()
