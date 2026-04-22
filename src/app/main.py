@@ -2,7 +2,6 @@
 # should be deleted later
 # run method is not necessary to work, main is enough
 from src.app.cli.shell import CERCASShell
-from src.app.core.tempApi import query
 
 
 def add(a, b):
