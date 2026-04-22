@@ -1,6 +1,7 @@
 from datetime import datetime
 from requests import get
 
+from src.app.core.currency_validator import validate_currency
 from src.app.core.aggregation_type import AggregationType
 
 
@@ -16,12 +17,16 @@ class CERCAS:
         self.number_of_intervals: int | None = None
 
     def set_pair(self, base: str, quote: str) -> None:
-        #TODO: Add checking correct format. ISO 4217
+        try:
+            validate_currency(base)
+            validate_currency(quote)
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            return
+
         self.base = base.upper()
         self.quote = quote.upper()
 
-    def __check_table(self, base: str) -> None:
-        request = get(f"https://api.nbp.pl/api/exchangerates/rates/A/{base}/")
 
     def set_period(self, start_date: datetime, end_date: datetime) -> None:
         if end_date < start_date:
