@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from dateutil.relativedelta import relativedelta
 from requests import get
 from src.app.core.currency_validator import validate_currency
 from src.app.core.aggregation_type import AggregationType
@@ -34,6 +35,11 @@ class CERCAS:
 
     def set_period(self, start_date: datetime, end_date: datetime) -> None:
         try:
+            if start_date + relativedelta(months=3) < end_date:
+                raise ValueError(
+                    f"period can't be longer then 3 months"
+                )
+
             if start_date < datetime(2002, 1, 2):
                 raise ValueError(
                     f"start_date must be after 2002-01-02"
