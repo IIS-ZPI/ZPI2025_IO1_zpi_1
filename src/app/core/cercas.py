@@ -20,30 +20,38 @@ class CERCAS:
         try:
             validate_currency(base)
             validate_currency(quote)
+
+            self.base = base.upper()
+            self.quote = quote.upper()
+
+            print("Pair set successfully")
         except Exception as e:
             print(f"An error occurred: {e}")
             return
 
-        self.base = base.upper()
-        self.quote = quote.upper()
-
-        print("Pair set successfully")
-
     def set_period(self, start_date: datetime, end_date: datetime) -> None:
-        if end_date < start_date:
-            raise ValueError(
-                f"start_date ({start_date}) must be greater than end_date ({end_date})"
-            )
+        try:
+            if start_date < datetime(2002, 1, 2):
+                raise ValueError(
+                    f"start_date must be after 2002-01-02"
+                )
 
-        if start_date > datetime.now():
-            raise ValueError(
-                f"start_date can't be in future."
-            )
+            if end_date < start_date:
+                raise ValueError(
+                    f"start_date ({start_date}) must be greater than end_date ({end_date})"
+                )
 
-        self.start_date = start_date
-        self.end_date = end_date
+            if start_date > datetime.now():
+                raise ValueError(
+                    f"start_date can't be in future."
+                )
 
-        print("Period set successfully")
+            self.start_date = start_date
+            self.end_date = end_date
+
+            print("Period set successfully")
+        except Exception as e:
+            print(f"An error occurred: {e}")
 
     def set_type(self, type: AggregationType) -> None:
         self.aggregation_type = type
@@ -51,56 +59,65 @@ class CERCAS:
         print("Aggregation type set successfully")
 
     def set_interval(self, number: int) -> None:
-        if number >= 0:
-            self.number_of_intervals = number
-        else:
-            raise ValueError("Interval must be positive")
+        try:
+            if number >= 0:
+                self.number_of_intervals = number
+            else:
+                raise ValueError("Interval must be positive")
 
-        print("Interval set successfully")
+            print("Interval set successfully")
+        except Exception as e:
+            print(f"An error occurred: {e}")
 
     def run_analysis(self) -> None:
-        if self.base is None or self.quote is None:
-            raise ValueError("Currency pair not set.")
+        try:
+            if self.base is None or self.quote is None:
+                raise ValueError("Currency pair not set.")
 
-        if self.start_date is None or self.end_date is None:
-            raise ValueError("Period not set.")
+            if self.start_date is None or self.end_date is None:
+                raise ValueError("Period not set.")
 
-        if self.aggregation_type is None:
-            raise ValueError("Aggregation type not set.")
+            if self.aggregation_type is None:
+                raise ValueError("Aggregation type not set.")
 
-        if self.number_of_intervals is None:
-            raise ValueError("Intervals not set.")
+            if self.number_of_intervals is None:
+                raise ValueError("Intervals not set.")
 
-        print("Analysis started")
+            print("Analysis started")
 
-        base_rates = self.__fetch_rates(self.base)
-        quote_rates = self.__fetch_rates(self.quote)
+            base_rates = self.__fetch_rates(self.base)
+            quote_rates = self.__fetch_rates(self.quote)
 
-        series = self.__build_cross_rate_series(base_rates, quote_rates)
+            series = self.__build_cross_rate_series(base_rates, quote_rates)
 
-        if len(series) < 2:
-            raise ValueError("Not enough data points returned from NBP API.")
+            if len(series) < 2:
+                raise ValueError("Not enough data points returned from NBP API.")
 
-        daily_changes = self.__daily_changes(series)
-        aggregated_values = self.__aggregate_changes(daily_changes)
+            daily_changes = self.__daily_changes(series)
+            aggregated_values = self.__aggregate_changes(daily_changes)
 
-        self.histogram = self.__build_histogram(aggregated_values)
+            self.histogram = self.__build_histogram(aggregated_values)
 
-        print("Analysis completed successfully.")
+            print("Analysis completed successfully.")
+        except Exception as e:
+            print(f"An error occurred: {e}")
 
     def export(self, file_path: str) -> None:
-        if self.histogram is None:
-            raise ValueError("No analysis results to export. Run analysis first.")
+        try:
+            if self.histogram is None:
+                raise ValueError("No analysis results to export. Run analysis first.")
 
-        if not file_path.endswith(".csv"):
-            raise ValueError("Export file must have .csv extension.")
+            if not file_path.endswith(".csv"):
+                raise ValueError("Export file must have .csv extension.")
 
-        with open(file_path, "w", encoding="utf-8") as f:
-            f.write("interval_start;interval_end;frequency\n")
-            for start, end, freq in self.histogram:
-                f.write(f"{start};{end};{freq}\n")
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write("interval_start;interval_end;frequency\n")
+                for start, end, freq in self.histogram:
+                    f.write(f"{start};{end};{freq}\n")
 
-        print(f"Exported successfully to {file_path}")
+            print(f"Exported successfully to {file_path}")
+        except Exception as e:
+            print(f"An error occurred: {e}")
 
     def show_config(self) -> None:
         if self.base is None:
