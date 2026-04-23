@@ -18,6 +18,9 @@ class CERCAS:
 
     def set_pair(self, base: str, quote: str) -> None:
         try:
+            base = base.upper()
+            quote = quote.upper()
+
             validate_currency(base)
             validate_currency(quote)
 
