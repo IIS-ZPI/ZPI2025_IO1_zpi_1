@@ -31,13 +31,17 @@ The project uses:
 
 ## Running the application
 
-### Install dependencies
+### Building project from source
 
-`pip install --upgrade -r requirements.txt`
+``` bash
+pip install --upgrade -r requirements.txt # install dependencies
+py -m src.app.main # run
+```
 
-### Run the application
-
-`py -m src.app.main`
+### Running release executables
+- Windows - run `app-windows-latest.exe` file
+- Linux - run in terminal `./app-ubuntu-latest`
+- MacOS - run in terminal `./app-macos-latest`
 
 ---
 
