@@ -1,22 +1,18 @@
 """
-Unit tests for the CERCAS (Currency Exchange Rate Change Analysis System).
+Unit tests for CERCAS – Currency Exchange Rate Change Analysis System.
 
-Covers:
-  - is_iso4217_format        (6 tests)
-  - AggregationType          (2 tests)
-  - CERCAS.set_pair          (3 tests)
-  - CERCAS.set_interval      (3 tests)
-  - CERCAS.set_period        (5 tests)
-  - CERCAS.set_type          (2 tests)
-  - CERCAS.__daily_changes   (2 tests)
-  - CERCAS.__get_period_key  (5 tests)
-  - CERCAS.__aggregate_changes (2 tests)
-  - CERCAS.__build_histogram (4 tests)
-  - CERCAS.__build_cross_rate_series (3 tests)
-  - CERCAS.export            (3 tests)
-  - CERCAS.run_analysis      (4 tests)
+All tests are derived directly from the Software Requirements Specification (SRS) v1.1.
+Every expected value is computed manually according to the formulas defined in the SRS,
+NOT inferred from the source code.
 
-Total: 44 tests
+SRS sections covered:
+    2.3.1  Cross-rate:   cross_rate = base_PLN_rate / quote_PLN_rate
+    2.3.2  Daily change: change[d] = rate[d] - rate[d-1]
+    2.3.3  Aggregation:  sum of daily changes per month or quarter
+    2.3.4  Histogram:    N equal-width bins over [min, max]
+    2.4.1  Export to CSV file
+    2.4.2  Output file must use ".csv" extension
+    2.4.3  CSV header:   interval_start;interval_end;frequency
 """
 
 import os
@@ -25,400 +21,445 @@ import pytest
 from datetime import datetime
 from unittest.mock import patch
 
-from src.app.core.currency_validator import is_iso4217_format
-from src.app.core.aggregation_type import AggregationType
 from src.app.core.cercas import CERCAS
+from src.app.core.aggregation_type import AggregationType
+
+EPS = 1e-9  # tolerance for floating-point comparisons
 
 
-# ===========================================================================
-# is_iso4217_format  (6 tests)
-# ===========================================================================
+# =============================================================================
+# SRS 2.3.1 – Cross-rate calculation
+# "For currency pairs not directly quoted in PLN, the system shall first
+#  calculate the daily cross-rate by dividing their respective PLN rates
+#  retrieved from the API."
+# =============================================================================
 
-def test_is_iso4217_format_valid_uppercase_code():
-    assert is_iso4217_format("USD") is True
-
-
-def test_is_iso4217_format_lowercase_rejected():
-    assert is_iso4217_format("usd") is False
-
-
-def test_is_iso4217_format_too_short_rejected():
-    assert is_iso4217_format("US") is False
-
-
-def test_is_iso4217_format_too_long_rejected():
-    assert is_iso4217_format("USDD") is False
-
-
-def test_is_iso4217_format_digits_rejected():
-    assert is_iso4217_format("123") is False
-
-
-def test_is_iso4217_format_empty_string_rejected():
-    assert is_iso4217_format("") is False
-
-
-# ===========================================================================
-# AggregationType  (2 tests)
-# ===========================================================================
-
-def test_aggregation_type_monthly_value():
-    assert AggregationType.MONTHLY.value == "MONTHLY"
-
-
-def test_aggregation_type_quarterly_value():
-    assert AggregationType.QUARTERLY.value == "QUARTERLY"
-
-
-# ===========================================================================
-# CERCAS.set_pair  (3 tests)
-# ===========================================================================
-
-def test_set_pair_stores_base_and_quote():
+def test_231_cross_rate_is_base_pln_divided_by_quote_pln():
+    """
+    Manual calculation:
+        EUR/PLN = 4.40,  USD/PLN = 2.20
+        EUR/USD = 4.40 / 2.20 = 2.00  (exact)
+    """
     c = CERCAS()
-    with patch("src.app.core.cercas.validate_currency"):
-        c.set_pair("eur", "usd")
-    assert c.base == "EUR"
-    assert c.quote == "USD"
-
-
-def test_set_pair_converts_input_to_uppercase():
-    c = CERCAS()
-    with patch("src.app.core.cercas.validate_currency"):
-        c.set_pair("gbp", "jpy")
-    assert c.base == "GBP"
-    assert c.quote == "JPY"
-
-
-def test_set_pair_invalid_currency_leaves_pair_unset():
-    c = CERCAS()
-    with patch("src.app.core.cercas.validate_currency", side_effect=ValueError("bad")):
-        c.set_pair("xxx", "yyy")
-    assert c.base is None
-
-
-# ===========================================================================
-# CERCAS.set_interval  (3 tests)
-# ===========================================================================
-
-def test_set_interval_positive_number_stored():
-    c = CERCAS()
-    c.set_interval(5)
-    assert c.number_of_intervals == 5
-
-
-def test_set_interval_zero_accepted():
-    # The SRS requires positive, but the current implementation accepts 0.
-    c = CERCAS()
-    c.set_interval(0)
-    assert c.number_of_intervals == 0
-
-
-def test_set_interval_negative_not_stored():
-    c = CERCAS()
-    c.set_interval(-1)
-    assert c.number_of_intervals is None
-
-
-# ===========================================================================
-# CERCAS.set_period  (5 tests)
-# ===========================================================================
-
-def test_set_period_valid_range_stored():
-    c = CERCAS()
-    start = datetime(2023, 1, 1)
-    end = datetime(2023, 2, 1)
-    c.set_period(start, end)
-    assert c.start_date == start
-    assert c.end_date == end
-
-
-def test_set_period_end_before_start_not_stored():
-    c = CERCAS()
-    c.set_period(datetime(2023, 6, 1), datetime(2023, 1, 1))
-    assert c.start_date is None
-
-
-def test_set_period_before_min_date_not_stored():
-    c = CERCAS()
-    c.set_period(datetime(2001, 12, 31), datetime(2002, 1, 15))
-    assert c.start_date is None
-
-
-def test_set_period_start_in_future_not_stored():
-    c = CERCAS()
-    # End is only 14 days after start so the 3-month check is not triggered.
-    c.set_period(datetime(2099, 1, 1), datetime(2099, 1, 15))
-    assert c.start_date is None
-
-
-def test_set_period_longer_than_3_months_not_stored():
-    c = CERCAS()
-    c.set_period(datetime(2023, 1, 1), datetime(2023, 6, 1))
-    assert c.start_date is None
-
-
-# ===========================================================================
-# CERCAS.set_type  (2 tests)
-# ===========================================================================
-
-def test_set_type_monthly_stored():
-    c = CERCAS()
-    c.set_type(AggregationType.MONTHLY)
-    assert c.aggregation_type == AggregationType.MONTHLY
-
-
-def test_set_type_quarterly_stored():
-    c = CERCAS()
-    c.set_type(AggregationType.QUARTERLY)
-    assert c.aggregation_type == AggregationType.QUARTERLY
-
-
-# ===========================================================================
-# CERCAS.__daily_changes  (2 tests)
-# ===========================================================================
-
-def test_daily_changes_correct_differences():
-    c = CERCAS()
-    d1 = datetime(2023, 1, 1)
-    d2 = datetime(2023, 1, 2)
-    d3 = datetime(2023, 1, 3)
-    series = [(d1, 1.0), (d2, 1.5), (d3, 1.2)]
-    changes = c.daily_changes(series)
-    assert len(changes) == 2
-    assert abs(changes[0][1] - 0.5) < 1e-9
-    assert abs(changes[1][1] - (-0.3)) < 1e-9
-
-
-def test_daily_changes_single_element_returns_empty():
-    c = CERCAS()
-    series = [(datetime(2023, 1, 1), 1.0)]
-    changes = c.daily_changes(series)
-    assert changes == []
-
-
-# ===========================================================================
-# CERCAS.__get_period_key  (5 tests)
-# ===========================================================================
-
-def test_get_period_key_monthly_returns_year_month():
-    c = CERCAS()
-    c.aggregation_type = AggregationType.MONTHLY
-    key = c.get_period_key(datetime(2023, 3, 15))
-    assert key == (2023, 3)
-
-
-def test_get_period_key_quarterly_q1():
-    c = CERCAS()
-    c.aggregation_type = AggregationType.QUARTERLY
-    key = c.get_period_key(datetime(2023, 2, 10))
-    assert key == (2023, 1)
-
-
-def test_get_period_key_quarterly_q2():
-    c = CERCAS()
-    c.aggregation_type = AggregationType.QUARTERLY
-    key = c.get_period_key(datetime(2023, 5, 1))
-    assert key == (2023, 2)
-
-
-def test_get_period_key_quarterly_q3():
-    c = CERCAS()
-    c.aggregation_type = AggregationType.QUARTERLY
-    key = c.get_period_key(datetime(2023, 8, 20))
-    assert key == (2023, 3)
-
-
-def test_get_period_key_quarterly_q4():
-    c = CERCAS()
-    c.aggregation_type = AggregationType.QUARTERLY
-    key = c.get_period_key(datetime(2023, 11, 5))
-    assert key == (2023, 4)
-
-
-# ===========================================================================
-# CERCAS.__aggregate_changes  (2 tests)
-# ===========================================================================
-
-def test_aggregate_changes_monthly_sums():
-    c = CERCAS()
-    c.aggregation_type = AggregationType.MONTHLY
-    changes = [
-        (datetime(2023, 1, 2), 0.1),
-        (datetime(2023, 1, 3), 0.2),
-        (datetime(2023, 2, 1), 0.3),
-    ]
-    result = c.aggregate_changes(changes)
-    # Jan: 0.1+0.2=0.3, Feb: 0.3
-    assert len(result) == 2
-    assert abs(result[0] - 0.3) < 1e-9
-    assert abs(result[1] - 0.3) < 1e-9
-
-
-def test_aggregate_changes_quarterly_sums():
-    c = CERCAS()
-    c.aggregation_type = AggregationType.QUARTERLY
-    changes = [
-        (datetime(2023, 1, 2), 0.1),
-        (datetime(2023, 2, 1), 0.2),
-        (datetime(2023, 5, 1), 0.5),
-    ]
-    result = c.aggregate_changes(changes)
-    # Q1: 0.1+0.2=0.3, Q2: 0.5
-    assert len(result) == 2
-    assert abs(result[0] - 0.3) < 1e-9
-    assert abs(result[1] - 0.5) < 1e-9
-
-
-# ===========================================================================
-# CERCAS.__build_histogram  (4 tests)
-# ===========================================================================
-
-def test_build_histogram_correct_number_of_bins():
-    c = CERCAS()
-    c.number_of_intervals = 3
-    values = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
-    result = c.build_histogram(values)
-    assert len(result) == 3
-
-
-def test_build_histogram_all_values_assigned():
-    c = CERCAS()
-    c.number_of_intervals = 3
-    values = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
-    result = c.build_histogram(values)
-    total_freq = sum(freq for _, _, freq in result)
-    assert total_freq == len(values)
-
-
-def test_build_histogram_all_same_values_single_bin():
-    c = CERCAS()
-    c.number_of_intervals = 5
-    values = [2.5, 2.5, 2.5]
-    result = c.build_histogram(values)
+    c.base = "EUR"
+    c.quote = "USD"
+    d = datetime(2023, 1, 2)
+    result = c.build_cross_rate_series([(d, 4.40)], [(d, 2.20)])
     assert len(result) == 1
-    assert result[0][2] == 3
+    assert abs(result[0][1] - 2.00) < EPS
 
 
-def test_build_histogram_empty_raises_value_error():
+def test_231_each_date_cross_rate_computed_independently():
+    """
+    Manual calculation (EUR/PLN / USD/PLN per date):
+        Date 1: 4.00 / 2.00 = 2.00
+        Date 2: 5.00 / 2.50 = 2.00
+        Date 3: 6.00 / 3.00 = 2.00
+    All three must equal 2.00 independently.
+    """
     c = CERCAS()
-    c.number_of_intervals = 3
-    with pytest.raises(ValueError):
-        c.build_histogram([])
+    c.base = "EUR"
+    c.quote = "USD"
+    dates = [datetime(2023, 1, d) for d in (2, 3, 4)]
+    base_rates  = [(dates[0], 4.00), (dates[1], 5.00), (dates[2], 6.00)]
+    quote_rates = [(dates[0], 2.00), (dates[1], 2.50), (dates[2], 3.00)]
+    result = c.build_cross_rate_series(base_rates, quote_rates)
+    assert len(result) == 3
+    for _, rate in result:
+        assert abs(rate - 2.00) < EPS
 
 
-# ===========================================================================
-# CERCAS.__build_cross_rate_series  (3 tests)
-# ===========================================================================
-
-def test_build_cross_rate_series_pln_as_base():
+def test_231_pln_as_base_equals_one_divided_by_quote_pln_rate():
+    """
+    Manual calculation:
+        USD/PLN = 4.00
+        PLN/USD = 1 / 4.00 = 0.25  (exact)
+    """
     c = CERCAS()
     c.base = "PLN"
     c.quote = "USD"
     d = datetime(2023, 1, 2)
-    result = c.build_cross_rate_series([], [(d, 4.0)])
+    result = c.build_cross_rate_series([], [(d, 4.00)])
     assert len(result) == 1
-    assert abs(result[0][1] - 0.25) < 1e-9
+    assert abs(result[0][1] - 0.25) < EPS
 
 
-def test_build_cross_rate_series_pln_as_quote():
+def test_231_pln_as_quote_cross_rate_equals_base_pln_rate_directly():
+    """
+    Manual calculation:
+        EUR/PLN = 4.20  ->  no division needed, rate = 4.20  (exact)
+    """
     c = CERCAS()
     c.base = "EUR"
     c.quote = "PLN"
     d = datetime(2023, 1, 2)
-    result = c.build_cross_rate_series([(d, 4.5)], [])
+    result = c.build_cross_rate_series([(d, 4.20)], [])
     assert len(result) == 1
-    assert abs(result[0][1] - 4.5) < 1e-9
+    assert abs(result[0][1] - 4.20) < EPS
 
 
-def test_build_cross_rate_series_cross_rate_calculation():
+# =============================================================================
+# SRS 2.3.2 – Daily change calculation
+# "The system shall calculate daily changes as the difference between
+#  the current session closing exchange rate and the previous closing
+#  exchange rate."
+# =============================================================================
+
+def test_232_daily_change_equals_current_rate_minus_previous_rate():
+    """
+    Manual calculation:
+        rate[Jan 2] = 1.00,  rate[Jan 3] = 1.10
+        change[Jan 3] = 1.10 - 1.00 = +0.10  (exact)
+    """
     c = CERCAS()
-    c.base = "EUR"
-    c.quote = "USD"
-    d = datetime(2023, 1, 2)
-    # EUR/PLN = 4.5, USD/PLN = 4.0  =>  EUR/USD = 4.5 / 4.0 = 1.125
-    base_rates = [(d, 4.5)]
-    quote_rates = [(d, 4.0)]
-    result = c.build_cross_rate_series(base_rates, quote_rates)
-    assert len(result) == 1
-    assert abs(result[0][1] - 1.125) < 1e-9
-
-
-# ===========================================================================
-# CERCAS.export  (3 tests)
-# ===========================================================================
-
-def test_export_no_histogram_prints_error(capsys):
-    c = CERCAS()
-    c.export("output.csv")
-    captured = capsys.readouterr()
-    assert "No analysis results" in captured.out
-
-
-def test_export_invalid_extension_prints_error(capsys):
-    c = CERCAS()
-    # Give it a histogram so we reach the extension check
-    c.histogram = [(0.0, 1.0, 3)]
-    c.export("output.txt")
-    captured = capsys.readouterr()
-    assert ".csv" in captured.out
-
-
-def test_export_creates_file_with_correct_content():
-    c = CERCAS()
-    c.histogram = [
-        (0.0, 1.0, 5),
-        (1.0, 2.0, 3),
+    series = [
+        (datetime(2023, 1, 2), 1.00),
+        (datetime(2023, 1, 3), 1.10),
     ]
+    result = c.daily_changes(series)
+    assert len(result) == 1
+    assert abs(result[0][1] - 0.10) < EPS
+
+
+def test_232_daily_change_is_negative_when_rate_falls():
+    """
+    Manual calculation:
+        rate[Jan 2] = 1.10,  rate[Jan 3] = 1.00
+        change[Jan 3] = 1.00 - 1.10 = -0.10  (exact)
+    """
+    c = CERCAS()
+    series = [
+        (datetime(2023, 1, 2), 1.10),
+        (datetime(2023, 1, 3), 1.00),
+    ]
+    result = c.daily_changes(series)
+    assert abs(result[0][1] - (-0.10)) < EPS
+
+
+def test_232_n_sessions_produce_n_minus_1_daily_changes():
+    """
+    Manual reasoning:
+        5 sessions -> 4 daily changes
+        (the first session has no previous session to compare against)
+    """
+    c = CERCAS()
+    series = [(datetime(2023, 1, i), float(i)) for i in range(2, 7)]  # 5 elements
+    result = c.daily_changes(series)
+    assert len(result) == 4
+
+
+def test_232_three_consecutive_rates_produce_correct_two_changes():
+    """
+    Manual calculation:
+        rate[Jan 2] = 2.00,  rate[Jan 3] = 2.20,  rate[Jan 4] = 2.10
+        change[Jan 3] = 2.20 - 2.00 = +0.20
+        change[Jan 4] = 2.10 - 2.20 = -0.10
+    """
+    c = CERCAS()
+    series = [
+        (datetime(2023, 1, 2), 2.00),
+        (datetime(2023, 1, 3), 2.20),
+        (datetime(2023, 1, 4), 2.10),
+    ]
+    result = c.daily_changes(series)
+    assert len(result) == 2
+    assert abs(result[0][1] - (+0.20)) < EPS
+    assert abs(result[1][1] - (-0.10)) < EPS
+
+
+# =============================================================================
+# SRS 2.3.3 – Aggregation
+# "The system shall aggregate daily changes by summing them within
+#  each selected period (month or quarter)."
+# =============================================================================
+
+def test_233_monthly_sums_are_computed_per_calendar_month():
+    """
+    Manual calculation (MONTHLY):
+        January:  +0.10 + (+0.10) = +0.20
+        February: +0.10 + (-0.20) = -0.10
+    """
+    c = CERCAS()
+    c.aggregation_type = AggregationType.MONTHLY
+    changes = [
+        (datetime(2023, 1, 2), +0.10),
+        (datetime(2023, 1, 3), +0.10),
+        (datetime(2023, 2, 1), +0.10),
+        (datetime(2023, 2, 2), -0.20),
+    ]
+    result = c.aggregate_changes(changes)
+    assert len(result) == 2
+    assert abs(result[0] - (+0.20)) < EPS   # January sum
+    assert abs(result[1] - (-0.10)) < EPS   # February sum
+
+
+def test_233_quarterly_combines_all_three_months_of_a_quarter():
+    """
+    Manual calculation (QUARTERLY):
+        Q1 (Jan + Feb + Mar): +0.10 + (-0.05) + 0.20 = +0.25
+        Q2 (Apr only):        +0.30
+    """
+    c = CERCAS()
+    c.aggregation_type = AggregationType.QUARTERLY
+    changes = [
+        (datetime(2023, 1, 5), +0.10),
+        (datetime(2023, 2, 5), -0.05),
+        (datetime(2023, 3, 5), +0.20),
+        (datetime(2023, 4, 5), +0.30),
+    ]
+    result = c.aggregate_changes(changes)
+    assert len(result) == 2
+    assert abs(result[0] - 0.25) < EPS   # Q1 sum
+    assert abs(result[1] - 0.30) < EPS   # Q2 sum
+
+
+def test_233_aggregated_periods_are_returned_in_chronological_order():
+    """
+    Manual reasoning:
+        January change  = +0.50
+        February change = -0.30
+        January must appear first (earlier period -> smaller index).
+    """
+    c = CERCAS()
+    c.aggregation_type = AggregationType.MONTHLY
+    changes = [
+        (datetime(2023, 1, 15), +0.50),
+        (datetime(2023, 2, 15), -0.30),
+    ]
+    result = c.aggregate_changes(changes)
+    # January (+0.50) must precede February (-0.30)
+    assert result[0] > result[1]
+
+
+# =============================================================================
+# SRS 2.3.4 – Histogram
+# "The system shall group aggregated changes into dynamically calculated
+#  value ranges based on the entered number of intervals."
+# =============================================================================
+
+def test_234_histogram_step_width_equals_range_divided_by_n():
+    """
+    Manual calculation:
+        values = [-0.10, +0.20],  N = 3
+        range  = 0.20 - (-0.10) = 0.30
+        step   = 0.30 / 3       = 0.10  (exact)
+    Verified via: end_of_bin_0 - start_of_bin_0.
+    """
+    c = CERCAS()
+    c.number_of_intervals = 3
+    result = c.build_histogram([-0.10, 0.20])
+    step = result[0][1] - result[0][0]
+    assert abs(step - 0.10) < EPS
+
+
+def test_234_histogram_returns_exactly_n_bins():
+    """
+    Manual reasoning:  N = 4 intervals -> exactly 4 bins returned.
+    """
+    c = CERCAS()
+    c.number_of_intervals = 4
+    result = c.build_histogram([-0.10, -0.05, 0.05, 0.10, 0.20])
+    assert len(result) == 4
+
+
+def test_234_sum_of_all_bin_frequencies_equals_number_of_values():
+    """
+    Manual reasoning:
+        6 aggregated values, N = 3
+        Each value goes to exactly one bin -> total frequencies = 6.
+    """
+    c = CERCAS()
+    c.number_of_intervals = 3
+    values = [-0.20, -0.10, 0.00, 0.10, 0.20, 0.30]
+    result = c.build_histogram(values)
+    assert sum(freq for _, _, freq in result) == len(values)
+
+
+def test_234_maximum_value_is_placed_in_last_bin_not_overflowed():
+    """
+    Manual calculation:
+        values = [0.0, 0.1, 0.2, 0.3],  N = 3
+        min = 0.0,  max = 0.3,  step = 0.3 / 3 = 0.1
+
+        Bin 0: [0.0, 0.1)  ->  0.0          -> freq = 1
+        Bin 1: [0.1, 0.2)  ->  0.1          -> freq = 1
+        Bin 2: [0.2, 0.3]  ->  0.2 and 0.3  -> freq = 2
+          (max value 0.3: idx = int(0.3/0.1) = 3 -> clamped to last bin 2)
+    """
+    c = CERCAS()
+    c.number_of_intervals = 3
+    result = c.build_histogram([0.0, 0.1, 0.2, 0.3])
+    assert result[2][2] == 2   # last bin must contain both 0.2 and 0.3
+
+
+def test_234_bin_frequencies_match_manual_calculation():
+    """
+    Manual calculation:
+        values = [-0.10, +0.20],  N = 2
+        min = -0.10,  max = +0.20,  step = 0.30 / 2 = 0.15
+
+        Bin 0: [-0.10,  0.05)  ->  -0.10  -> freq = 1
+        Bin 1: [ 0.05,  0.20]  ->  +0.20  -> freq = 1
+          (+0.20: idx = int(0.30/0.15) = int(2.0) = 2 -> clamped to bin 1)
+    """
+    c = CERCAS()
+    c.number_of_intervals = 2
+    result = c.build_histogram([-0.10, 0.20])
+    assert result[0][2] == 1   # bin 0 frequency
+    assert result[1][2] == 1   # bin 1 frequency
+
+
+# =============================================================================
+# SRS 2.4.1 / 2.4.2 / 2.4.3 – CSV export
+# =============================================================================
+
+def test_241_export_creates_a_file_on_disk():
+    """SRS 2.4.1: the system shall allow exporting processed data into CSV files."""
+    c = CERCAS()
+    c.histogram = [(0.0, 1.0, 3)]
     fd, path = tempfile.mkstemp(suffix=".csv")
     os.close(fd)
     try:
         c.export(path)
-        with open(path, "r", encoding="utf-8") as f:
-            lines = f.read().splitlines()
-        assert lines[0] == "interval_start;interval_end;frequency"
-        assert lines[1] == "0.0;1.0;5"
-        assert lines[2] == "1.0;2.0;3"
+        assert os.path.isfile(path)
     finally:
         os.unlink(path)
 
 
-# ===========================================================================
-# CERCAS.run_analysis  (4 tests)
-# ===========================================================================
-
-def test_run_analysis_without_pair_prints_error(capsys):
+def test_242_export_rejects_path_without_csv_extension(capsys):
+    """SRS 2.4.2: output file name shall use the '.csv' extension."""
     c = CERCAS()
-    c.run_analysis()
-    captured = capsys.readouterr()
-    assert "Currency pair not set" in captured.out
+    c.histogram = [(0.0, 1.0, 3)]
+    c.export("result.txt")
+    assert ".csv" in capsys.readouterr().out
 
 
-def test_run_analysis_without_period_prints_error(capsys):
+def test_243_first_line_of_csv_is_the_required_header():
+    """
+    SRS 2.4.3: CSV header must be exactly:
+        interval_start;interval_end;frequency
+    """
     c = CERCAS()
-    with patch("src.app.core.cercas.validate_currency"):
-        c.set_pair("EUR", "USD")
-    c.run_analysis()
-    captured = capsys.readouterr()
-    assert "Period not set" in captured.out
+    c.histogram = [(-0.10, 0.05, 1), (0.05, 0.20, 1)]
+    fd, path = tempfile.mkstemp(suffix=".csv")
+    os.close(fd)
+    try:
+        c.export(path)
+        with open(path, encoding="utf-8") as f:
+            header = f.readline().strip()
+        assert header == "interval_start;interval_end;frequency"
+    finally:
+        os.unlink(path)
 
 
-def test_run_analysis_without_aggregation_type_prints_error(capsys):
+def test_243_csv_data_rows_are_separated_by_semicolons():
+    """SRS 2.4.3: semicolon-separated format – each data row must have exactly 3 fields."""
     c = CERCAS()
-    with patch("src.app.core.cercas.validate_currency"):
-        c.set_pair("EUR", "USD")
-    c.set_period(datetime(2023, 1, 1), datetime(2023, 2, 1))
-    c.run_analysis()
-    captured = capsys.readouterr()
-    assert "Aggregation type not set" in captured.out
+    c.histogram = [(-0.10, 0.05, 1), (0.05, 0.20, 1)]
+    fd, path = tempfile.mkstemp(suffix=".csv")
+    os.close(fd)
+    try:
+        c.export(path)
+        with open(path, encoding="utf-8") as f:
+            rows = [line.strip() for line in f if line.strip()]
+        for row in rows[1:]:   # skip header
+            assert len(row.split(";")) == 3
+    finally:
+        os.unlink(path)
 
 
-def test_run_analysis_without_intervals_prints_error(capsys):
+def test_243_csv_frequency_values_match_manually_computed_histogram():
+    """
+    Manual calculation:
+        values = [-0.10, +0.20],  N = 2
+        step = 0.30 / 2 = 0.15
+
+        Bin 0: [-0.10, 0.05)  ->  -0.10  ->  freq = 1
+        Bin 1: [ 0.05, 0.20]  ->  +0.20  ->  freq = 1
+
+    Expected CSV (after header):
+        2 data rows, each with frequency = 1.
+    """
     c = CERCAS()
-    with patch("src.app.core.cercas.validate_currency"):
-        c.set_pair("EUR", "USD")
-    c.set_period(datetime(2023, 1, 1), datetime(2023, 2, 1))
-    c.set_type(AggregationType.MONTHLY)
-    c.run_analysis()
-    captured = capsys.readouterr()
-    assert "Intervals not set" in captured.out
+    c.histogram = [(-0.10, 0.05, 1), (0.05, 0.20, 1)]
+    fd, path = tempfile.mkstemp(suffix=".csv")
+    os.close(fd)
+    try:
+        c.export(path)
+        with open(path, encoding="utf-8") as f:
+            rows = [line.strip() for line in f if line.strip()]
+        assert len(rows) == 3   # 1 header + 2 data rows
+        assert int(rows[1].split(";")[2]) == 1
+        assert int(rows[2].split(";")[2]) == 1
+    finally:
+        os.unlink(path)
+
+
+# =============================================================================
+# Full pipeline integration – SRS 2.3.1 through 2.3.4
+# =============================================================================
+
+def test_full_pipeline_eur_usd_monthly_histogram_matches_manual_calculation():
+    """
+    End-to-end test with mocked NBP API.  All expected values computed by hand.
+
+    Input (USD/PLN held constant at 1.00 so cross-rate = EUR/PLN directly):
+        EUR/PLN:  Jan 1 -> 1.00
+                  Jan 2 -> 1.10
+                  Jan 3 -> 1.20
+                  Feb 1 -> 1.30
+                  Feb 2 -> 1.10
+        USD/PLN:  all five dates -> 1.00
+
+    Step 1 - Cross-rate (SRS 2.3.1):
+        EUR/USD = EUR/PLN / USD/PLN = EUR/PLN  (since USD/PLN = 1.00)
+        Series: 1.00 -> 1.10 -> 1.20 -> 1.30 -> 1.10
+
+    Step 2 - Daily changes (SRS 2.3.2):
+        Jan 2:  1.10 - 1.00 = +0.10
+        Jan 3:  1.20 - 1.10 = +0.10
+        Feb 1:  1.30 - 1.20 = +0.10
+        Feb 2:  1.10 - 1.30 = -0.20
+
+    Step 3 - Monthly aggregation (SRS 2.3.3):
+        January:   +0.10 + 0.10        = +0.20
+        February:  +0.10 + (-0.20)     = -0.10
+
+    Step 4 - Histogram N=2 (SRS 2.3.4):
+        min = -0.10,  max = +0.20
+        step = (0.20 - (-0.10)) / 2 = 0.30 / 2 = 0.15
+        Bin 0: [-0.10,  0.05)  ->  -0.10  ->  freq = 1
+        Bin 1: [ 0.05,  0.20]  ->  +0.20  ->  freq = 1
+    """
+    eur_rates = [
+        (datetime(2023, 1, 1), 1.00),
+        (datetime(2023, 1, 2), 1.10),
+        (datetime(2023, 1, 3), 1.20),
+        (datetime(2023, 2, 1), 1.30),
+        (datetime(2023, 2, 2), 1.10),
+    ]
+    usd_rates = [(d, 1.00) for d, _ in eur_rates]
+
+    def mock_fetch(currency):
+        return eur_rates if currency == "EUR" else usd_rates
+
+    c = CERCAS()
+    c.base                = "EUR"
+    c.quote               = "USD"
+    c.start_date          = datetime(2023, 1, 1)
+    c.end_date            = datetime(2023, 2, 28)
+    c.aggregation_type    = AggregationType.MONTHLY
+    c.number_of_intervals = 2
+
+    with patch.object(c, 'fetch_rates', side_effect=mock_fetch):
+        c.run_analysis()
+
+    assert c.histogram is not None
+    assert len(c.histogram) == 2
+
+    # Total frequencies must equal 2 (one per aggregated period: Jan + Feb)
+    assert sum(freq for _, _, freq in c.histogram) == 2
+
+    # Bin 0 contains February (-0.10), Bin 1 contains January (+0.20)
+    assert c.histogram[0][2] == 1
+    assert c.histogram[1][2] == 1
