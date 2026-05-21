@@ -184,7 +184,7 @@ def test_daily_changes_correct_differences():
     d2 = datetime(2023, 1, 2)
     d3 = datetime(2023, 1, 3)
     series = [(d1, 1.0), (d2, 1.5), (d3, 1.2)]
-    changes = c._CERCAS__daily_changes(series)
+    changes = c.daily_changes(series)
     assert len(changes) == 2
     assert abs(changes[0][1] - 0.5) < 1e-9
     assert abs(changes[1][1] - (-0.3)) < 1e-9
@@ -193,7 +193,7 @@ def test_daily_changes_correct_differences():
 def test_daily_changes_single_element_returns_empty():
     c = CERCAS()
     series = [(datetime(2023, 1, 1), 1.0)]
-    changes = c._CERCAS__daily_changes(series)
+    changes = c.daily_changes(series)
     assert changes == []
 
 
@@ -204,35 +204,35 @@ def test_daily_changes_single_element_returns_empty():
 def test_get_period_key_monthly_returns_year_month():
     c = CERCAS()
     c.aggregation_type = AggregationType.MONTHLY
-    key = c._CERCAS__get_period_key(datetime(2023, 3, 15))
+    key = c.get_period_key(datetime(2023, 3, 15))
     assert key == (2023, 3)
 
 
 def test_get_period_key_quarterly_q1():
     c = CERCAS()
     c.aggregation_type = AggregationType.QUARTERLY
-    key = c._CERCAS__get_period_key(datetime(2023, 2, 10))
+    key = c.get_period_key(datetime(2023, 2, 10))
     assert key == (2023, 1)
 
 
 def test_get_period_key_quarterly_q2():
     c = CERCAS()
     c.aggregation_type = AggregationType.QUARTERLY
-    key = c._CERCAS__get_period_key(datetime(2023, 5, 1))
+    key = c.get_period_key(datetime(2023, 5, 1))
     assert key == (2023, 2)
 
 
 def test_get_period_key_quarterly_q3():
     c = CERCAS()
     c.aggregation_type = AggregationType.QUARTERLY
-    key = c._CERCAS__get_period_key(datetime(2023, 8, 20))
+    key = c.get_period_key(datetime(2023, 8, 20))
     assert key == (2023, 3)
 
 
 def test_get_period_key_quarterly_q4():
     c = CERCAS()
     c.aggregation_type = AggregationType.QUARTERLY
-    key = c._CERCAS__get_period_key(datetime(2023, 11, 5))
+    key = c.get_period_key(datetime(2023, 11, 5))
     assert key == (2023, 4)
 
 
@@ -248,7 +248,7 @@ def test_aggregate_changes_monthly_sums():
         (datetime(2023, 1, 3), 0.2),
         (datetime(2023, 2, 1), 0.3),
     ]
-    result = c._CERCAS__aggregate_changes(changes)
+    result = c.aggregate_changes(changes)
     # Jan: 0.1+0.2=0.3, Feb: 0.3
     assert len(result) == 2
     assert abs(result[0] - 0.3) < 1e-9
@@ -263,7 +263,7 @@ def test_aggregate_changes_quarterly_sums():
         (datetime(2023, 2, 1), 0.2),
         (datetime(2023, 5, 1), 0.5),
     ]
-    result = c._CERCAS__aggregate_changes(changes)
+    result = c.aggregate_changes(changes)
     # Q1: 0.1+0.2=0.3, Q2: 0.5
     assert len(result) == 2
     assert abs(result[0] - 0.3) < 1e-9
@@ -278,7 +278,7 @@ def test_build_histogram_correct_number_of_bins():
     c = CERCAS()
     c.number_of_intervals = 3
     values = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
-    result = c._CERCAS__build_histogram(values)
+    result = c.build_histogram(values)
     assert len(result) == 3
 
 
@@ -286,7 +286,7 @@ def test_build_histogram_all_values_assigned():
     c = CERCAS()
     c.number_of_intervals = 3
     values = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
-    result = c._CERCAS__build_histogram(values)
+    result = c.build_histogram(values)
     total_freq = sum(freq for _, _, freq in result)
     assert total_freq == len(values)
 
@@ -295,7 +295,7 @@ def test_build_histogram_all_same_values_single_bin():
     c = CERCAS()
     c.number_of_intervals = 5
     values = [2.5, 2.5, 2.5]
-    result = c._CERCAS__build_histogram(values)
+    result = c.build_histogram(values)
     assert len(result) == 1
     assert result[0][2] == 3
 
@@ -304,7 +304,7 @@ def test_build_histogram_empty_raises_value_error():
     c = CERCAS()
     c.number_of_intervals = 3
     with pytest.raises(ValueError):
-        c._CERCAS__build_histogram([])
+        c.build_histogram([])
 
 
 # ===========================================================================
@@ -316,7 +316,7 @@ def test_build_cross_rate_series_pln_as_base():
     c.base = "PLN"
     c.quote = "USD"
     d = datetime(2023, 1, 2)
-    result = c._CERCAS__build_cross_rate_series([], [(d, 4.0)])
+    result = c.build_cross_rate_series([], [(d, 4.0)])
     assert len(result) == 1
     assert abs(result[0][1] - 0.25) < 1e-9
 
@@ -326,7 +326,7 @@ def test_build_cross_rate_series_pln_as_quote():
     c.base = "EUR"
     c.quote = "PLN"
     d = datetime(2023, 1, 2)
-    result = c._CERCAS__build_cross_rate_series([(d, 4.5)], [])
+    result = c.build_cross_rate_series([(d, 4.5)], [])
     assert len(result) == 1
     assert abs(result[0][1] - 4.5) < 1e-9
 
@@ -339,7 +339,7 @@ def test_build_cross_rate_series_cross_rate_calculation():
     # EUR/PLN = 4.5, USD/PLN = 4.0  =>  EUR/USD = 4.5 / 4.0 = 1.125
     base_rates = [(d, 4.5)]
     quote_rates = [(d, 4.0)]
-    result = c._CERCAS__build_cross_rate_series(base_rates, quote_rates)
+    result = c.build_cross_rate_series(base_rates, quote_rates)
     assert len(result) == 1
     assert abs(result[0][1] - 1.125) < 1e-9
 
