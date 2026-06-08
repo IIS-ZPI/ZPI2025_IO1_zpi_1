@@ -98,10 +98,6 @@ class CERCAS:
             quote_rates = self.fetch_rates(self.quote)
 
             series = self.build_cross_rate_series(base_rates, quote_rates)
-            base_rates = self.__fetch_rates(self.base)
-            quote_rates = self.__fetch_rates(self.quote)
-
-            series = self.__build_cross_rate_series(base_rates, quote_rates)
 
             if len(series) < 2:
                 raise ValueError("Not enough data points returned from NBP API.")
@@ -110,10 +106,6 @@ class CERCAS:
             aggregated_values = self.aggregate_changes(daily_changes)
 
             self.histogram = self.build_histogram(aggregated_values)
-            daily_changes = self.__daily_changes(series)
-            aggregated_values = self.__aggregate_changes(daily_changes)
-
-            self.histogram = self.__build_histogram(aggregated_values)
 
             print("Analysis completed successfully.")
         except Exception as e:
@@ -164,7 +156,6 @@ class CERCAS:
             print(f"Number of intervals is: {self.number_of_intervals}")
 
     def fetch_rates(self, currency: str) -> list[tuple[datetime, float]]:
-    def __fetch_rates(self, currency: str) -> list[tuple[datetime, float]]:
         if currency == "PLN":
             return []
 
@@ -200,9 +191,8 @@ class CERCAS:
             current_start = current_end + timedelta(days=1)
 
         return all_rates
-    
+
     def build_cross_rate_series(
-    def __build_cross_rate_series(
             self,
             base_rates: list[tuple[datetime, float]],
             quote_rates: list[tuple[datetime, float]],
@@ -227,7 +217,6 @@ class CERCAS:
         return [(d, base_map[d] / quote_map[d]) for d in common_dates]
 
     def daily_changes(self, series: list[tuple[datetime, float]]) -> list[tuple[datetime, float]]:
-    def __daily_changes(self, series: list[tuple[datetime, float]]) -> list[tuple[datetime, float]]:
         """
         Returns list of (date, change) where change = rate(today) - rate(yesterday)
         """
@@ -239,7 +228,6 @@ class CERCAS:
         return changes
 
     def get_period_key(self, date: datetime) -> tuple[int, int]:
-    def __get_period_key(self, date: datetime) -> tuple[int, int]:
         """
         Returns (year, month) for monthly
         Returns (year, quarter) for quarterly
@@ -251,7 +239,6 @@ class CERCAS:
         return (date.year, quarter)
 
     def aggregate_changes(self, changes: list[tuple[datetime, float]]) -> list[float]:
-    def __aggregate_changes(self, changes: list[tuple[datetime, float]]) -> list[float]:
         """
         Aggregate daily changes into monthly or quarterly sums.
         Returns list of aggregated values.
@@ -259,13 +246,11 @@ class CERCAS:
         aggregated = {}
         for date, change in changes:
             key = self.get_period_key(date)
-            key = self.__get_period_key(date)
             aggregated[key] = aggregated.get(key, 0.0) + change
 
         return [aggregated[k] for k in sorted(aggregated.keys())]
 
     def build_histogram(self, values: list[float]) -> list[tuple[float, float, int]]:
-    def __build_histogram(self, values: list[float]) -> list[tuple[float, float, int]]:
         """
         Build histogram based on number_of_intervals.
         Returns list of (interval_start, interval_end, frequency)
