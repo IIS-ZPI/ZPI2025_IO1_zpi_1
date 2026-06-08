@@ -21,8 +21,8 @@ import pytest
 from datetime import datetime
 from unittest.mock import patch
 
-from src.app.core.cercas import CERCAS
-from src.app.core.aggregation_type import AggregationType
+from core.cercas import CERCAS
+from core.aggregation_type import AggregationType
 
 EPS = 1e-9  # tolerance for floating-point comparisons
 

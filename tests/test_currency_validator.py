@@ -1,6 +1,4 @@
-from app.core import *
-
-from src.app.core import currency_validator
+from core import currency_validator
 
 
 # TESTS: is ISO4217 format 1
