@@ -463,3 +463,59 @@ def test_full_pipeline_eur_usd_monthly_histogram_matches_manual_calculation():
     # Bin 0 contains February (-0.10), Bin 1 contains January (+0.20)
     assert c.histogram[0][2] == 1
     assert c.histogram[1][2] == 1
+
+
+# =============================================================================
+# Issue #28 – Export Analysis frequency some data is lost
+# "When exported histogram has less data in frequency when it should have."
+# The sum of all bin frequencies in the exported CSV must equal the number
+# of aggregated periods. No data should be lost during export.
+# =============================================================================
+
+def test_issue28_exported_frequency_sum_equals_number_of_aggregated_periods():
+    """
+    Regression test for Issue #28.
+
+    Manual calculation (same as full pipeline test):
+        2 monthly aggregated values → histogram total frequency must be 2.
+        After export to CSV, sum of all frequency fields must also equal 2.
+    """
+    eur_rates = [
+        (datetime(2023, 1, 1), 1.00),
+        (datetime(2023, 1, 2), 1.10),
+        (datetime(2023, 1, 3), 1.20),
+        (datetime(2023, 2, 1), 1.30),
+        (datetime(2023, 2, 2), 1.10),
+    ]
+    usd_rates = [(d, 1.00) for d, _ in eur_rates]
+
+    def mock_fetch(currency):
+        return eur_rates if currency == "EUR" else usd_rates
+
+    c = CERCAS()
+    c.base                = "EUR"
+    c.quote               = "USD"
+    c.start_date          = datetime(2023, 1, 1)
+    c.end_date            = datetime(2023, 2, 28)
+    c.aggregation_type    = AggregationType.MONTHLY
+    c.number_of_intervals = 2
+
+    with patch.object(c, 'fetch_rates', side_effect=mock_fetch):
+        c.run_analysis()
+
+    assert c.histogram is not None
+
+    fd, path = tempfile.mkstemp(suffix=".csv")
+    os.close(fd)
+    try:
+        c.export(path)
+        with open(path, encoding="utf-8") as f:
+            rows = [line.strip() for line in f if line.strip()]
+        data_rows = rows[1:]  # skip header
+        assert len(data_rows) == 2, "Exported CSV must contain all bins, including zero-frequency ones"
+        total_exported_freq = sum(int(row.split(";")[2]) for row in data_rows)
+        assert total_exported_freq == 2, (
+            f"Issue #28: exported frequency sum is {total_exported_freq}, expected 2 — data was lost"
+        )
+    finally:
+        os.unlink(path)
