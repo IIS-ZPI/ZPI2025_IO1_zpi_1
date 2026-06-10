@@ -45,7 +45,7 @@ class CERCAS:
                     f"start_date must be after 2002-01-02"
                 )
 
-            if end_date < start_date:
+            if end_date <= start_date:
                 raise ValueError(
                     f"start_date ({start_date}) must be greater than end_date ({end_date})"
                 )
@@ -67,9 +67,17 @@ class CERCAS:
 
         print("Aggregation type set successfully")
 
+    def switch_type(self) -> None:
+        if self.aggregation_type is None:
+            raise ValueError("You must set aggregation before you can switch it.")
+        if self.aggregation_type is AggregationType.QUARTERLY:
+            self.aggregation_type = AggregationType.MONTHLY
+        else:
+            self.aggregation_type = AggregationType.QUARTERLY
+
     def set_interval(self, number: int) -> None:
         try:
-            if number >= 0:
+            if number > 0:
                 self.number_of_intervals = number
             else:
                 raise ValueError("Interval must be positive")

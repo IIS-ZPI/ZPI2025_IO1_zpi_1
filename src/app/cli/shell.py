@@ -127,3 +127,9 @@ class CERCASShell(cmd.Cmd):
 
         """
         self.app.show_config()
+
+    def do_switch_aggregation(self) -> None:
+        try:
+            self.app.switch_type()
+        except ValueError:
+            print("You must set aggregation before you can switch it.")
