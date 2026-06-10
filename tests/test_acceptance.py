@@ -82,13 +82,16 @@ def test_uc1_full_analysis_produces_histogram():
 def test_uc1_histogram_frequencies_sum_to_number_of_aggregated_periods():
     """
     UC-1 / Issue-28 regression: total frequency across all bins must equal
-    the number of aggregated periods, not be less.
+    the number of aggregated periods (Jan + Feb + Mar = 3 monthly periods).
+    A sum less than 3 means data was lost — that is the exact bug in Issue #28.
     """
-    c = _make_cercas()
+    c = _make_cercas()  # MONTHLY aggregation, data spans Jan-Mar → 3 periods
     with patch.object(c, "fetch_rates", side_effect=[_EUR_RATES, _USD_RATES]):
         c.run_analysis()
     total_freq = sum(freq for _, _, freq in c.histogram)
-    assert total_freq > 0, "No data was placed into histogram bins"
+    assert total_freq == 3, (
+        f"Issue #28: histogram frequency sum is {total_freq}, expected 3 — data was lost"
+    )
 
 
 def test_uc1_export_creates_valid_csv_file():
