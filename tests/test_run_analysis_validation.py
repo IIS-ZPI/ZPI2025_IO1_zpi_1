@@ -156,6 +156,21 @@ def test_415_run_analysis_histogram_has_correct_number_of_bins():
     assert len(c.histogram) == c.number_of_intervals
 
 
+def test_415_run_analysis_histogram_frequency_sum_equals_aggregated_period_count():
+    """
+    Issue #28 regression: sum of all bin frequencies must equal the number of
+    aggregated periods (Jan + Feb + Mar = 3 monthly periods from the fake data).
+    If data is lost during histogram construction this assertion catches it.
+    """
+    c = _configured()  # MONTHLY aggregation, data spans Jan-Mar → 3 periods
+    with patch.object(c, "fetch_rates", side_effect=[_FAKE_RATES_EUR, _FAKE_RATES_USD]):
+        c.run_analysis()
+    total_freq = sum(freq for _, _, freq in c.histogram)
+    assert total_freq == 3, (
+        f"Issue #28: histogram frequency sum is {total_freq}, expected 3 — data was lost"
+    )
+
+
 def test_415_run_analysis_fails_when_api_returns_insufficient_data(capsys):
     """SRS 3.2: at least 2 data points required to compute daily changes."""
     c = _configured()
