@@ -262,8 +262,9 @@ class CERCAS:
         max_v = max(values)
 
         if min_v == max_v:
-            # all values same -> single bin
-            return [(min_v, max_v, len(values))]
+            single_bin = [(min_v, max_v, 0) for _ in range(self.number_of_intervals)]
+            single_bin[0] = (min_v, max_v, len(values))  # all values fall in first bin
+            return single_bin
 
         step = (max_v - min_v) / self.number_of_intervals
 
