@@ -1,8 +1,8 @@
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from requests import get
-from src.app.core.currency_validator import validate_currency
-from src.app.core.aggregation_type import AggregationType
+from core.currency_validator import validate_currency
+from core.aggregation_type import AggregationType
 
 
 class CERCAS:
@@ -94,18 +94,18 @@ class CERCAS:
 
             print("Analysis started")
 
-            base_rates = self.__fetch_rates(self.base)
-            quote_rates = self.__fetch_rates(self.quote)
+            base_rates = self.fetch_rates(self.base)
+            quote_rates = self.fetch_rates(self.quote)
 
-            series = self.__build_cross_rate_series(base_rates, quote_rates)
+            series = self.build_cross_rate_series(base_rates, quote_rates)
 
             if len(series) < 2:
                 raise ValueError("Not enough data points returned from NBP API.")
 
-            daily_changes = self.__daily_changes(series)
-            aggregated_values = self.__aggregate_changes(daily_changes)
+            daily_changes = self.daily_changes(series)
+            aggregated_values = self.aggregate_changes(daily_changes)
 
-            self.histogram = self.__build_histogram(aggregated_values)
+            self.histogram = self.build_histogram(aggregated_values)
 
             print("Analysis completed successfully.")
         except Exception as e:
@@ -155,7 +155,7 @@ class CERCAS:
         else:
             print(f"Number of intervals is: {self.number_of_intervals}")
 
-    def __fetch_rates(self, currency: str) -> list[tuple[datetime, float]]:
+    def fetch_rates(self, currency: str) -> list[tuple[datetime, float]]:
         if currency == "PLN":
             return []
 
@@ -191,7 +191,8 @@ class CERCAS:
             current_start = current_end + timedelta(days=1)
 
         return all_rates
-    def __build_cross_rate_series(
+
+    def build_cross_rate_series(
             self,
             base_rates: list[tuple[datetime, float]],
             quote_rates: list[tuple[datetime, float]],
@@ -215,7 +216,7 @@ class CERCAS:
         common_dates = sorted(set(base_map.keys()) & set(quote_map.keys()))
         return [(d, base_map[d] / quote_map[d]) for d in common_dates]
 
-    def __daily_changes(self, series: list[tuple[datetime, float]]) -> list[tuple[datetime, float]]:
+    def daily_changes(self, series: list[tuple[datetime, float]]) -> list[tuple[datetime, float]]:
         """
         Returns list of (date, change) where change = rate(today) - rate(yesterday)
         """
@@ -226,7 +227,7 @@ class CERCAS:
             changes.append((date_today, rate_today - rate_yesterday))
         return changes
 
-    def __get_period_key(self, date: datetime) -> tuple[int, int]:
+    def get_period_key(self, date: datetime) -> tuple[int, int]:
         """
         Returns (year, month) for monthly
         Returns (year, quarter) for quarterly
@@ -237,19 +238,19 @@ class CERCAS:
         quarter = (date.month - 1) // 3 + 1
         return (date.year, quarter)
 
-    def __aggregate_changes(self, changes: list[tuple[datetime, float]]) -> list[float]:
+    def aggregate_changes(self, changes: list[tuple[datetime, float]]) -> list[float]:
         """
         Aggregate daily changes into monthly or quarterly sums.
         Returns list of aggregated values.
         """
         aggregated = {}
         for date, change in changes:
-            key = self.__get_period_key(date)
+            key = self.get_period_key(date)
             aggregated[key] = aggregated.get(key, 0.0) + change
 
         return [aggregated[k] for k in sorted(aggregated.keys())]
 
-    def __build_histogram(self, values: list[float]) -> list[tuple[float, float, int]]:
+    def build_histogram(self, values: list[float]) -> list[tuple[float, float, int]]:
         """
         Build histogram based on number_of_intervals.
         Returns list of (interval_start, interval_end, frequency)
