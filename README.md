@@ -35,6 +35,7 @@ The project uses:
 
 ``` bash
 pip install --upgrade -r requirements.txt # install dependencies
+cd src
 py -m src.app.main # run
 ```
 

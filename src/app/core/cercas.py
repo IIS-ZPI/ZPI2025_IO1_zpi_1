@@ -1,8 +1,8 @@
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from requests import get
-from core.currency_validator import validate_currency
-from core.aggregation_type import AggregationType
+from app.core.currency_validator import validate_currency
+from app.core.aggregation_type import AggregationType
 
 
 class CERCAS:

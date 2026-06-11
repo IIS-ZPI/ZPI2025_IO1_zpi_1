@@ -29,7 +29,7 @@ from datetime import datetime
 from unittest.mock import patch, MagicMock
 
 # CERCASShell imports from src.app.core.* internally (wrong, but tested as-is)
-from cli.shell import CERCASShell
+from app.cli.shell import CERCASShell
 
 
 # =============================================================================
@@ -51,14 +51,14 @@ def _run(shell: CERCASShell, command: str) -> str:
 
 def test_412_shell_set_pair_accepts_valid_pair():
     shell = CERCASShell()
-    with patch("core.cercas.validate_currency"):
+    with patch("app.core.cercas.validate_currency"):
         out = _run(shell, "set_pair EUR/USD")
     assert "successfully" in out.lower()
 
 
 def test_412_shell_set_pair_stores_base_and_quote():
     shell = CERCASShell()
-    with patch("core.cercas.validate_currency"):
+    with patch("app.core.cercas.validate_currency"):
         _run(shell, "set_pair EUR/USD")
     assert shell.app.base == "EUR"
     assert shell.app.quote == "USD"
@@ -148,7 +148,7 @@ def test_414_shell_set_aggregation_invalid_raises_instead_of_printing_error():
 def test_415_shell_run_analysis_prints_error_when_pair_not_set():
     shell = CERCASShell()
     shell.app.set_period(datetime(2023, 1, 1), datetime(2023, 3, 31))
-    from core.aggregation_type import AggregationType as AT
+    from app.core.aggregation_type import AggregationType as AT
     shell.app.aggregation_type = AT.MONTHLY
     shell.app.number_of_intervals = 5
     out = _run(shell, "run_analysis")
@@ -194,7 +194,7 @@ def test_417_shell_show_config_prints_not_set_for_empty_config():
 
 def test_417_shell_show_config_shows_pair_when_set():
     shell = CERCASShell()
-    with patch("core.cercas.validate_currency"):
+    with patch("app.core.cercas.validate_currency"):
         _run(shell, "set_pair EUR/USD")
     out = _run(shell, "show_config")
     assert "EUR" in out

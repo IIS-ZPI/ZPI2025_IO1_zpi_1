@@ -42,10 +42,12 @@ Znaleziony: commit `447b2cf` (2026-06-09) · Naprawiony: commit `560bbe6` (2026-
 c) **Bug #3 – Brak komendy `switch_aggregation` w interfejsie CLI (SRS 4.1.8)**
 Znaleziony: commit `447b2cf` (2026-06-09) · Naprawiony: commit `560bbe6` (2026-06-10)
 
+d) **Bug #4 – `do_set_aggregation` rzuca wyjątek `ValueError` zamiast wypisać komunikat użytkownikowi**
+Lokalizacja: `src/app/cli/shell.py` · wykryty testem `test_414_shell_set_aggregation_invalid_raises_instead_of_printing_error`
+
 **2) Do zrobienia.**
 
-a) **Bug #4 – `do_set_aggregation` rzuca wyjątek `ValueError` zamiast wypisać komunikat użytkownikowi**
-Lokalizacja: `src/app/cli/shell.py` · wykryty testem `test_414_shell_set_aggregation_invalid_raises_instead_of_printing_error`
+*(brak)*
 
 **3) Takie, które są ryzykowne do poprawienia w danym momencie.**
 

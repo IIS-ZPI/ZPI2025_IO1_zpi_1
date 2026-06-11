@@ -1,7 +1,7 @@
 import cmd
 
-from core.aggregation_type import AggregationType
-from core.cercas import CERCAS
+from app.core.aggregation_type import AggregationType
+from app.core.cercas import CERCAS
 from datetime import datetime
 
 class CERCASShell(cmd.Cmd):

@@ -1,14 +1,14 @@
 # Methods add and multiply are added to show work of automatic unit tests,
 # should be deleted later
 # run method is not necessary to work, main is enough
-from cli.shell import CERCASShell
+from app.cli.shell import CERCASShell
 
 
 def add(a, b):
     return a + b
 
 
-def multiply(a, b):
+def  vvvmultiply(a, b):
     return a * b
 
 

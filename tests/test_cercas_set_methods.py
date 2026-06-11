@@ -19,8 +19,8 @@ import pytest
 from datetime import datetime
 from unittest.mock import patch
 
-from core.cercas import CERCAS
-from core.aggregation_type import AggregationType
+from app.core.cercas import CERCAS
+from app.core.aggregation_type import AggregationType
 
 EPS = 1e-9
 
@@ -31,7 +31,7 @@ EPS = 1e-9
 
 def test_211_set_pair_stores_base_and_quote():
     c = CERCAS()
-    with patch("core.cercas.validate_currency"):
+    with patch("app.core.cercas.validate_currency"):
         c.set_pair("EUR", "USD")
     assert c.base == "EUR"
     assert c.quote == "USD"
@@ -39,7 +39,7 @@ def test_211_set_pair_stores_base_and_quote():
 
 def test_211_set_pair_converts_lowercase_input_to_uppercase():
     c = CERCAS()
-    with patch("core.cercas.validate_currency"):
+    with patch("app.core.cercas.validate_currency"):
         c.set_pair("eur", "usd")
     assert c.base == "EUR"
     assert c.quote == "USD"
@@ -47,7 +47,7 @@ def test_211_set_pair_converts_lowercase_input_to_uppercase():
 
 def test_211_set_pair_prints_success_message(capsys):
     c = CERCAS()
-    with patch("core.cercas.validate_currency"):
+    with patch("app.core.cercas.validate_currency"):
         c.set_pair("EUR", "USD")
     assert "successfully" in capsys.readouterr().out.lower()
 
@@ -70,7 +70,7 @@ def test_261_set_pair_rejects_too_long_currency_code(capsys):
 def test_261_set_pair_rejects_currency_not_in_nbp(capsys):
     """SRS 2.2.6: only currencies in NBP table are accepted."""
     c = CERCAS()
-    with patch("core.cercas.validate_currency", side_effect=ValueError("Not supported by NBP")):
+    with patch("app.core.cercas.validate_currency", side_effect=ValueError("Not supported by NBP")):
         c.set_pair("XYZ", "USD")
     assert c.base is None
     assert "error" in capsys.readouterr().out.lower()
@@ -84,7 +84,7 @@ def test_261_set_pair_does_not_partially_set_on_invalid_quote(capsys):
         if code == "INVALID":
             raise ValueError("Not supported")
 
-    with patch("core.cercas.validate_currency", side_effect=fake_validate):
+    with patch("app.core.cercas.validate_currency", side_effect=fake_validate):
         c.set_pair("EUR", "INVALID")
     assert c.base is None
     assert c.quote is None
