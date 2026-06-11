@@ -1,184 +1,183 @@
-# Raport z testów aplikacji nr 1
+# Application Test Report No. 1
 
 **2026-06-11**
 
 ---
 
-## A. Opis wykonanych działań.
+## A. Description of Activities Performed.
 
-**Środowiska i urządzenia, na których odbywały się testy:**
+**Environments and devices used for testing:**
 
-1. Komputer – macOS Tahoee 26.5.1 / Python 3.13, środowisko wirtualne `.venv`, edytor VS Code
+1. Computer – macOS Tahoe 26.5.1 / Python 3.13, virtual environment `.venv`, VS Code editor
 
+**Tester login and password:** wiktorrozanski (local macOS system user; CLI application – no login system)
 
-**Login i hasło testera:** wiktorrozanski (lokalny użytkownik systemowy macOS; aplikacja CLI – brak systemu logowania)
+**Build number:** `8f4286e` dated **2026-06-11**
 
-**Build number:** `8f4286e` z dnia **2026-06-11**
+### Application areas and types of tests performed:
 
-### Obszary aplikacji oraz rodzaje testów wykonane:
-
-| Obszar aplikacji | Rodzaje wykonanych testów | Czas poświęcony na testy |
+| Application area | Types of tests performed | Time spent on testing |
 |---|---|---|
-| Walidacja walut (`currency_validator`) | testy jednostkowe, testy wartości brzegowych, testy walidacji (mocked NBP API) | 1 h |
-| Konfiguracja CERCAS (`set_pair`, `set_period`, `set_type`, `set_interval`) | testy jednostkowe, testy wartości brzegowych, testy walidacji | 2 h |
-| Wyświetlanie konfiguracji (`show_config`) | testy jednostkowe, testy funkcjonalne | 0,5 h |
-| Przetwarzanie danych (cross-rate, zmiany dzienne, agregacja, histogram) | testy jednostkowe, testy regresji (Issue #28) | 2 h |
-| Eksport CSV | testy jednostkowe, testy integracyjne | 1 h |
-| Interfejs CLI (`CERCASShell`) | testy integracyjne, testy funkcjonalne | 1,5 h |
-| Cała aplikacja (UC-1, UC-2, UC-3) | testy akceptacyjne, testy regresji | 1,5 h |
+| Currency validation (`currency_validator`) | unit tests, boundary value tests, validation tests (mocked NBP API) | 1 h |
+| CERCAS configuration (`set_pair`, `set_period`, `set_type`, `set_interval`) | unit tests, boundary value tests, validation tests | 2 h |
+| Configuration display (`show_config`) | unit tests, functional tests | 0.5 h |
+| Data processing (cross-rate, daily changes, aggregation, histogram) | unit tests, regression tests (Issue #28) | 2 h |
+| CSV export | unit tests, integration tests | 1 h |
+| CLI interface (`CERCASShell`) | integration tests, functional tests | 1.5 h |
+| Full application (UC-1, UC-2, UC-3) | acceptance tests, regression tests | 1.5 h |
 
 ---
 
-## B. Podsumowanie wszystkich defektów.
+## B. Summary of All Defects.
 
-**1) Poprawione i zretestowane.**
+**1) Fixed and re-tested.**
 
-a) **Bug #1 – `set_period` akceptował równe daty startową i końcową (SRS 2.6.3)**
-Znaleziony: commit `447b2cf` (2026-06-09) · Naprawiony: commit `560bbe6` (2026-06-10)
+a) **Bug #1 – `set_period` accepted equal start and end dates (SRS 2.6.3)**
+Found: commit `447b2cf` (2026-06-09) · Fixed: commit `560bbe6` (2026-06-10)
 
-b) **Bug #2 – `set_interval` akceptował zero (SRS 2.6.5)**
-Znaleziony: commit `447b2cf` (2026-06-09) · Naprawiony: commit `560bbe6` (2026-06-10)
+b) **Bug #2 – `set_interval` accepted zero (SRS 2.6.5)**
+Found: commit `447b2cf` (2026-06-09) · Fixed: commit `560bbe6` (2026-06-10)
 
-c) **Bug #3 – Brak komendy `switch_aggregation` w interfejsie CLI (SRS 4.1.8)**
-Znaleziony: commit `447b2cf` (2026-06-09) · Naprawiony: commit `560bbe6` (2026-06-10)
+c) **Bug #3 – Missing `switch_aggregation` command in the CLI interface (SRS 4.1.8)**
+Found: commit `447b2cf` (2026-06-09) · Fixed: commit `560bbe6` (2026-06-10)
 
-d) **Bug #4 – `do_set_aggregation` rzuca wyjątek `ValueError` zamiast wypisać komunikat użytkownikowi**
-Lokalizacja: `src/app/cli/shell.py` · wykryty testem `test_414_shell_set_aggregation_invalid_raises_instead_of_printing_error`
+d) **Bug #4 – `do_set_aggregation` throws a `ValueError` exception instead of printing a message to the user**
+Location: `src/app/cli/shell.py` · detected by test `test_414_shell_set_aggregation_invalid_raises_instead_of_printing_error`
 
-**2) Do zrobienia.**
+**2) To be done.**
 
-*(brak)*
+*(none)*
 
-**3) Takie, które są ryzykowne do poprawienia w danym momencie.**
+**3) Those that are risky to fix at this moment.**
 
-*(brak)*
-
----
-
-## C. Szczegółowy opis defektów
-
-### Bug #1a – `set_period` akceptował równe daty startową i końcową
-
-**Kto wykrył:** Wiktor Różański
-
-**Raport, w którym wykryty:** bieżący (Raport nr 1)
-
-**Priorytet:** Wysoki — zerowy przedział czasu prowadzi do pustych wyników analizy lub wyjątku podczas aggregacji
-
-**Powtarzalność:** 100% — każde wywołanie `set_period` z identyczną datą startową i końcową reprodukuje błąd
-
-**Przeglądarka:** nie dotyczy (aplikacja CLI)
-
-**Lokalizacja występowania problemu:** `src/app/core/cercas.py` → metoda `set_period` → warunek weryfikacji dat
-
-**Kroki do powtórzenia:**
-
-1. Uruchomić aplikację: `source .venv/bin/activate && python -m app`
-2. Ustawić parę walut: `set_pair EUR/USD`
-3. Ustawić identyczne daty: `set_period 2023-06-01 2023-06-01`
-4. Zaobserwować, że aplikacja przyjmuje konfigurację bez zgłoszenia błędu
-
-**Rezultat testów:** Metoda `set_period` akceptowała konfigurację, w której `end_date == start_date`, choć SRS 2.6.3 wymaga, aby data końcowa była **ściśle późniejsza** od daty startowej. Warunek w kodzie brzmiał `if end_date < start_date`, co nie odrzucało przypadku równości. Poprawka: zmiana na `if end_date <= start_date` w commit `560bbe6`.
+*(none)*
 
 ---
 
-### Bug #2a – `set_interval` akceptował wartość zero
+## C. Detailed Defect Descriptions
 
-**Kto wykrył:** Wiktor Różański
+### Bug #1a – `set_period` accepted equal start and end dates
 
-**Raport, w którym wykryty:** bieżący (Raport nr 1)
+**Detected by:** Wiktor Różański
 
-**Priorytet:** Krytyczny — ustawienie interwałów na 0 powoduje `ZeroDivisionError` przy wywołaniu `run_analysis`
+**Report in which detected:** current (Report No. 1)
 
-**Powtarzalność:** 100% — każde wywołanie `set_interval 0` reprodukuje błąd
+**Priority:** High — a zero-length time range leads to empty analysis results or an exception during aggregation
 
-**Przeglądarka:** nie dotyczy (aplikacja CLI)
+**Reproducibility:** 100% — every call to `set_period` with identical start and end dates reproduces the bug
 
-**Lokalizacja występowania problemu:** `src/app/core/cercas.py` → metoda `set_interval` → warunek walidacji wartości
+**Browser:** not applicable (CLI application)
 
-**Kroki do powtórzenia:**
+**Location of the problem:** `src/app/core/cercas.py` → `set_period` method → date validation condition
 
-1. Uruchomić aplikację: `source .venv/bin/activate && python -m app`
-2. Skonfigurować parę walut i okres
-3. Wywołać: `set_interval 0`
-4. Zaobserwować, że aplikacja przyjmuje wartość bez błędu
-5. Wywołać `run_analysis` — aplikacja zgłasza `ZeroDivisionError`
+**Steps to reproduce:**
 
-**Rezultat testów:** Metoda `set_interval` używała warunku `if number >= 0`, przez co zero było akceptowane jako prawidłowa liczba interwałów. SRS 2.6.5 wymaga, aby liczba interwałów była **dodatnią liczbą całkowitą**. Poprawka: zmiana na `if number > 0` w commit `560bbe6`.
+1. Launch the application: `source .venv/bin/activate && python -m app`
+2. Set the currency pair: `set_pair EUR/USD`
+3. Set identical dates: `set_period 2023-06-01 2023-06-01`
+4. Observe that the application accepts the configuration without raising an error
 
----
-
-### Bug #3a – Brak komendy `switch_aggregation` w interfejsie CLI
-
-**Kto wykrył:** Wiktor Różański
-
-**Raport, w którym wykryty:** bieżący (Raport nr 1)
-
-**Priorytet:** Średni — funkcjonalność zdefiniowana w SRS 4.1.8 była całkowicie niedostępna dla użytkownika CLI
-
-**Powtarzalność:** 100% — komenda nie istniała w kodzie
-
-**Przeglądarka:** nie dotyczy (aplikacja CLI)
-
-**Lokalizacja występowania problemu:** `src/app/cli/shell.py` → klasa `CERCASShell` — brak metody `do_switch_aggregation`
-
-**Kroki do powtórzenia:**
-
-1. Uruchomić aplikację: `source .venv/bin/activate && python -m app`
-2. Ustawić typ agregacji: `set_aggregation MONTHLY`
-3. Wpisać komendę: `switch_aggregation`
-4. Shell zwraca: `*** Unknown syntax: switch_aggregation`
-
-**Rezultat testów:** Metoda `do_switch_aggregation` była całkowicie nieobecna w klasie `CERCASShell`. SRS 4.1.8 wymaga, aby komenda `switch_aggregation` przełączała typ agregacji między MONTHLY a QUARTERLY. Poprawka: dodanie metody `do_switch_aggregation` wywołującej `self.app.switch_type()` w commit `560bbe6`.
+**Test result:** The `set_period` method accepted a configuration where `end_date == start_date`, even though SRS 2.6.3 requires the end date to be **strictly later** than the start date. The condition in the code read `if end_date < start_date`, which did not reject the equality case. Fix: changed to `if end_date <= start_date` in commit `560bbe6`.
 
 ---
 
-### Bug #4a – `do_set_aggregation` rzuca wyjątek zamiast wypisać komunikat
+### Bug #2a – `set_interval` accepted the value zero
 
-**Kto wykrył:** Wiktor Różański
+**Detected by:** Wiktor Różański
 
-**Raport, w którym wykryty:** bieżący (Raport nr 1)
+**Report in which detected:** current (Report No. 1)
 
-**Priorytet:** Niski — błąd użytkownika nie jest gracefully obsługiwany, ale aplikacja nie traci danych
+**Priority:** Critical — setting the interval count to 0 causes a `ZeroDivisionError` when `run_analysis` is called
 
-**Powtarzalność:** 100% — każde wywołanie `set_aggregation <nieprawidłowa_wartość>` reprodukuje zachowanie
+**Reproducibility:** 100% — every call to `set_interval 0` reproduces the bug
 
-**Przeglądarka:** nie dotyczy (aplikacja CLI)
+**Browser:** not applicable (CLI application)
 
-**Lokalizacja występowania problemu:** `src/app/cli/shell.py` → metoda `do_set_aggregation` → gałąź `else`
+**Location of the problem:** `src/app/core/cercas.py` → `set_interval` method → value validation condition
 
-**Kroki do powtórzenia:**
+**Steps to reproduce:**
 
-1. Uruchomić aplikację: `source .venv/bin/activate && python -m app`
-2. Wpisać nieprawidłową wartość: `set_aggregation WEEKLY`
-3. Shell rzuca nieobsługiwany wyjątek `ValueError: Invalid aggregation type` zamiast wypisać podpowiedź
+1. Launch the application: `source .venv/bin/activate && python -m app`
+2. Configure the currency pair and period
+3. Call: `set_interval 0`
+4. Observe that the application accepts the value without raising an error
+5. Call `run_analysis` — the application raises `ZeroDivisionError`
 
-**Rezultat testów:** Gdy użytkownik poda nieobsługiwany typ agregacji, metoda `do_set_aggregation` wykonuje `raise ValueError("Invalid aggregation type")` zamiast wypisać przyjazny komunikat (np. `Usage: set_aggregation <MONTHLY|QUARTERLY>`). W kodzie obecna jest nawet zakomentowana linia z poprawnym rozwiązaniem (`#print("Usage: set_type <type>")`). Defekt nadal obecny — wymaga poprawy w kolejnym sprincie.
+**Test result:** The `set_interval` method used the condition `if number >= 0`, causing zero to be accepted as a valid interval count. SRS 2.6.5 requires the interval count to be a **positive integer**. Fix: changed to `if number > 0` in commit `560bbe6`.
 
 ---
 
-## D. Podsumowanie kryteriów zakończenia wszystkich testów.
+### Bug #3a – Missing `switch_aggregation` command in the CLI interface
 
-**1. Czy udało nam się zrealizować zaplanowane testy?**
+**Detected by:** Wiktor Różański
 
-Tak. Wszystkie 130 testów opisanych w TESTS.md zostało uruchomione i zakończonych statusem OK po naprawieniu wykrytych defektów. Pokryto wszystkie kluczowe obszary aplikacji: walidację, konfigurację, przetwarzanie danych, eksport CSV oraz interfejs CLI, w tym testy akceptacyjne end-to-end (UC-1, UC-2, UC-3).
+**Report in which detected:** current (Report No. 1)
 
-**2. Czy wystąpiły jakieś trudności?**
+**Priority:** Medium — the functionality defined in SRS 4.1.8 was completely unavailable to the CLI user
 
-Podczas pierwszego uruchomienia zestawu testów (`testy_vol2`, commit `447b2cf`) trzy testy celowo nie przechodziły — były to testy ujawniające znane błędy w kodzie produkcyjnym (Bugs #1, #2, #3). Naprawienie tych defektów przez DariuszPasińskiego (commit `560bbe6`, 2026-06-10) spowodowało, że wszystkie testy przeszły. Przed scaleniem z gałęzią `develop` konieczne było też naprawienie uruchamiania aplikacji (commit `9a3e3da`) po modyfikacjach wprowadzonych przez testy — plik `src/app/__main__.py` wymagał korekty importów.
+**Reproducibility:** 100% — the command did not exist in the code
 
-**3. Weryfikacja estymat czasu pracy.**
+**Browser:** not applicable (CLI application)
 
-Szacowany łączny czas testowania wyniósł ok. **9,5 h**. Faktyczny czas był zbliżony do estymaty — pisanie testów regresyjnych (szczególnie dla Issue #28 oraz testów akceptacyjnych UC-1–UC-3) okazało się nieznacznie bardziej czasochłonne ze względu na konieczność ręcznego wyliczenia oczekiwanych wartości z formuł SRS.
+**Location of the problem:** `src/app/cli/shell.py` → `CERCASShell` class — missing `do_switch_aggregation` method
 
-**4. Ryzyka, które się zrealizowały.**
+**Steps to reproduce:**
 
-- Ryzyko: „Brakujące komendy CLI" — zrealizowało się (Bug #3, brak `switch_aggregation`). Ryzyko można usunąć z test planu.
-- Ryzyko: „Nieprawidłowa walidacja zakresów dat i interwałów" — zrealizowało się (Bug #1 i Bug #2). Ryzyko można usunąć z test planu.
-- Nowe ryzyko do dodania do test planu: obsługa błędów użytkownika w CLI (Bug #4 nadal obecny — wszystkie komendy powinny być sprawdzone pod kątem jednolitej obsługi błędnych danych wejściowych).
+1. Launch the application: `source .venv/bin/activate && python -m app`
+2. Set the aggregation type: `set_aggregation MONTHLY`
+3. Enter the command: `switch_aggregation`
+4. The shell returns: `*** Unknown syntax: switch_aggregation`
 
-**5. Wnioski na przyszłość.**
+**Test result:** The `do_switch_aggregation` method was completely absent from the `CERCASShell` class. SRS 4.1.8 requires the `switch_aggregation` command to toggle the aggregation type between MONTHLY and QUARTERLY. Fix: added the `do_switch_aggregation` method calling `self.app.switch_type()` in commit `560bbe6`.
 
-- Warunki graniczne (`<` vs `<=`, `> 0` vs `>= 0`) są częstym źródłem błędów off-by-one. Przy każdym warunku walidacji warto od razu pisać test dla wartości granicznej.
-- Metody CLI (`do_*`) powinny konsekwentnie obsługiwać wszelkie wyjątki wewnętrznie — nigdy nie powinny propagować ich do użytkownika. Ujednolicenie wzorca `try/except → print(usage)` we wszystkich metodach `do_*` wyeliminuje całą klasę potencjalnych błędów.
-- Testy akceptacyjne (UC-1–UC-3) wykryły regresję Issue #28 (eksport CSV gubił dane, gdy wszystkie wartości histogramu były identyczne) — warto rozbudować te testy o więcej scenariuszy granicznych danych wejściowych z NBP.
+---
+
+### Bug #4a – `do_set_aggregation` throws an exception instead of printing a message
+
+**Detected by:** Wiktor Różański
+
+**Report in which detected:** current (Report No. 1)
+
+**Priority:** Low — the user error is not handled gracefully, but the application does not lose data
+
+**Reproducibility:** 100% — every call to `set_aggregation <invalid_value>` reproduces the behaviour
+
+**Browser:** not applicable (CLI application)
+
+**Location of the problem:** `src/app/cli/shell.py` → `do_set_aggregation` method → `else` branch
+
+**Steps to reproduce:**
+
+1. Launch the application: `source .venv/bin/activate && python -m app`
+2. Enter an invalid value: `set_aggregation WEEKLY`
+3. The shell raises an unhandled `ValueError: Invalid aggregation type` instead of printing a hint
+
+**Test result:** When the user provides an unsupported aggregation type, the `do_set_aggregation` method executes `raise ValueError("Invalid aggregation type")` instead of printing a user-friendly message (e.g. `Usage: set_aggregation <MONTHLY|QUARTERLY>`). The code even contains a commented-out line with the correct solution (`#print("Usage: set_type <type>")`). The defect remains present — requires fixing in a future sprint.
+
+---
+
+## D. Summary of Test Completion Criteria.
+
+**1. Were we able to carry out the planned tests?**
+
+Yes. All 130 tests described in TESTS.md were executed and completed with an OK status after the detected defects were fixed. All key application areas were covered: validation, configuration, data processing, CSV export, and the CLI interface, including end-to-end acceptance tests (UC-1, UC-2, UC-3).
+
+**2. Were there any difficulties?**
+
+During the first run of the test suite (`testy_vol2`, commit `447b2cf`) three tests were intentionally failing — they were tests designed to expose known bugs in the production code (Bugs #1, #2, #3). Fixing those defects by DariuszPasiński (commit `560bbe6`, 2026-06-10) caused all tests to pass. Before merging into the `develop` branch, it was also necessary to fix the application launch (commit `9a3e3da`) following modifications introduced by the tests — the `src/app/__main__.py` file required an import correction.
+
+**3. Time estimate verification.**
+
+The estimated total testing time was approx. **9.5 h**. The actual time was close to the estimate — writing regression tests (particularly for Issue #28 and the UC-1–UC-3 acceptance tests) turned out to be slightly more time-consuming due to the need to manually calculate expected values from the SRS formulas.
+
+**4. Risks that materialised.**
+
+- Risk: "Missing CLI commands" — materialised (Bug #3, missing `switch_aggregation`). This risk can be removed from the test plan.
+- Risk: "Incorrect validation of date ranges and interval values" — materialised (Bug #1 and Bug #2). This risk can be removed from the test plan.
+- New risk to add to the test plan: user error handling in the CLI (Bug #4 still present — all commands should be reviewed for consistent handling of invalid user input).
+
+**5. Lessons learned.**
+
+- Boundary conditions (`<` vs `<=`, `> 0` vs `>= 0`) are a frequent source of off-by-one errors. For every validation condition, a boundary value test should be written immediately alongside the implementation.
+- CLI methods (`do_*`) should consistently handle all exceptions internally — they should never propagate them to the user. Unifying the `try/except → print(usage)` pattern across all `do_*` methods will eliminate this entire class of potential bugs.
+- The acceptance tests (UC-1–UC-3) caught the Issue #28 regression (the CSV export was losing data when all histogram values were identical) — it is worth extending these tests with more edge-case scenarios covering unusual NBP API data.

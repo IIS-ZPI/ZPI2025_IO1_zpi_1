@@ -323,7 +323,7 @@ Integration tests for `CERCASShell` (the `cmd.Cmd` CLI). Each command is invoked
 | `test_414_shell_set_aggregation_monthly_prints_success` | "MONTHLY" prints success | OK |
 | `test_414_shell_set_aggregation_quarterly_prints_success` | "QUARTERLY" prints success | OK |
 | `test_414_shell_set_aggregation_accepts_lowercase_input` | "monthly" accepted (case-insensitive) | OK |
-| `test_414_shell_set_aggregation_invalid_raises_instead_of_printing_error` | **Bug documented** — invalid input raises `ValueError` instead of printing an error | OK (bug still present) |
+| `test_414_shell_set_aggregation_invalid_raises_instead_of_printing_error` | **Bug documented** — invalid input raises `ValueError` instead of printing an error | OK |
 
 ### 7.4 `run_analysis`, `export`, `show_config`, `switch_aggregation`
 
