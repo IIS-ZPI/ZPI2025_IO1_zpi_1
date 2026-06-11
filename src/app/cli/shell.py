@@ -129,6 +129,12 @@ class CERCASShell(cmd.Cmd):
         self.app.show_config()
 
     def do_switch_aggregation(self, arg) -> None:
+        """
+        switch_aggregation
+        Description: Toggle aggregation type between monthly and quarterly aggregation modes.
+        Parameters: None
+        """
+
         try:
             self.app.switch_type()
         except ValueError:
