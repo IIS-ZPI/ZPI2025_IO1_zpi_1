@@ -172,7 +172,7 @@ def test_uc2_analysis_blocked_when_period_missing(capsys):
 def test_uc2_export_blocked_before_analysis(capsys):
     """UC-2: export must fail gracefully if analysis has not been run."""
     c = _make_cercas()
-    c.export("/tmp/no_analysis.csv")
+    c.export("output.csv")
     assert "error" in capsys.readouterr().out.lower()
 
 
@@ -180,7 +180,7 @@ def test_uc2_export_blocked_for_non_csv_extension(capsys):
     """UC-2: export must reject a file path that does not end with .csv."""
     c = _make_cercas()
     c.histogram = [(0.0, 1.0, 3)]
-    c.export("/tmp/output.txt")
+    c.export("output.txt")
     assert "error" in capsys.readouterr().out.lower()
 
 
@@ -232,5 +232,5 @@ def test_uc3_user_can_switch_aggregation_type_and_rerun():
         c.run_analysis()
 
     assert c.histogram is not None
-    # quarterly buckets: fewer periods → histogram may differ
-    assert c.histogram != monthly_histogram or True  # structure may coincide by chance
+    # Jan–Mar = Q1 only → quarterly produces 1 aggregated period; monthly produces 3
+    assert sum(freq for _, _, freq in c.histogram) == 1

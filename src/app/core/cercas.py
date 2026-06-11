@@ -164,6 +164,9 @@ class CERCAS:
             print(f"Number of intervals is: {self.number_of_intervals}")
 
     def fetch_rates(self, currency: str) -> list[tuple[datetime, float]]:
+        return self.__fetch_rates(currency)
+
+    def __fetch_rates(self, currency: str) -> list[tuple[datetime, float]]:
         if currency == "PLN":
             return []
 
