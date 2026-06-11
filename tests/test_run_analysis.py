@@ -1,8 +1,8 @@
 import pytest
 from datetime import datetime
 from unittest.mock import patch
-from core.aggregation_type import AggregationType
-from core.cercas import CERCAS
+from app.core.aggregation_type import AggregationType
+from app.core.cercas import CERCAS
 
 
 # ---------------------------------------------------------------------------

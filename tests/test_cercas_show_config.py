@@ -10,8 +10,8 @@ import pytest
 from unittest.mock import patch
 from datetime import datetime
 
-from core.cercas import CERCAS
-from core.aggregation_type import AggregationType
+from app.core.cercas import CERCAS
+from app.core.aggregation_type import AggregationType
 
 
 # =============================================================================
@@ -27,7 +27,7 @@ def test_417_show_config_reports_base_not_set_when_none(capsys):
 
 def test_417_show_config_reports_base_currency_when_set(capsys):
     c = CERCAS()
-    with patch("core.cercas.validate_currency"):
+    with patch("app.core.cercas.validate_currency"):
         c.set_pair("EUR", "USD")
     capsys.readouterr()  # discard set_pair output
     c.show_config()
@@ -37,7 +37,7 @@ def test_417_show_config_reports_base_currency_when_set(capsys):
 
 def test_417_show_config_reports_quote_currency_when_set(capsys):
     c = CERCAS()
-    with patch("core.cercas.validate_currency"):
+    with patch("app.core.cercas.validate_currency"):
         c.set_pair("EUR", "USD")
     capsys.readouterr()
     c.show_config()
@@ -133,7 +133,7 @@ def test_417_show_config_reports_interval_count_when_set(capsys):
 def test_417_show_config_full_config_displays_all_fields(capsys):
     """When all fields are set, show_config must print all of them."""
     c = CERCAS()
-    with patch("core.cercas.validate_currency"):
+    with patch("app.core.cercas.validate_currency"):
         c.set_pair("GBP", "PLN")
     c.set_period(datetime(2023, 6, 1), datetime(2023, 8, 31))
     c.set_type(AggregationType.QUARTERLY)
