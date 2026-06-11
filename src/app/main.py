@@ -1,7 +1,7 @@
 # Methods add and multiply are added to show work of automatic unit tests,
 # should be deleted later
 # run method is not necessary to work, main is enough
-from src.app.cli.shell import CERCASShell
+from cli.shell import CERCASShell
 
 
 def add(a, b):
