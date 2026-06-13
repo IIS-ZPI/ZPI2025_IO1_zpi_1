@@ -1,8 +1,8 @@
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from requests import get
-from core.currency_validator import validate_currency
-from core.aggregation_type import AggregationType
+from app.core.currency_validator import validate_currency
+from app.core.aggregation_type import AggregationType
 
 
 class CERCAS:
@@ -45,7 +45,7 @@ class CERCAS:
                     f"start_date must be after 2002-01-02"
                 )
 
-            if end_date < start_date:
+            if end_date <= start_date:
                 raise ValueError(
                     f"start_date ({start_date}) must be greater than end_date ({end_date})"
                 )
@@ -80,9 +80,17 @@ class CERCAS:
 
         print("Aggregation type set successfully")
 
+    def switch_type(self) -> None:
+        if self.aggregation_type is None:
+            raise ValueError("You must set aggregation before you can switch it.")
+        if self.aggregation_type is AggregationType.QUARTERLY:
+            self.aggregation_type = AggregationType.MONTHLY
+        else:
+            self.aggregation_type = AggregationType.QUARTERLY
+
     def set_interval(self, number: int) -> None:
         try:
-            if number >= 0:
+            if number > 0:
                 self.number_of_intervals = number
             else:
                 raise ValueError("Interval must be positive")
@@ -175,6 +183,9 @@ class CERCAS:
             print(f"Number of intervals is: {self.number_of_intervals}")
 
     def fetch_rates(self, currency: str) -> list[tuple[datetime, float]]:
+        return self.__fetch_rates(currency)
+
+    def __fetch_rates(self, currency: str) -> list[tuple[datetime, float]]:
         if currency == "PLN":
             return []
 
@@ -281,8 +292,9 @@ class CERCAS:
         max_v = max(values)
 
         if min_v == max_v:
-            # all values same -> single bin
-            return [(min_v, max_v, len(values))]
+            single_bin = [(min_v, max_v, 0) for _ in range(self.number_of_intervals)]
+            single_bin[0] = (min_v, max_v, len(values))  # all values fall in first bin
+            return single_bin
 
         step = (max_v - min_v) / self.number_of_intervals
 

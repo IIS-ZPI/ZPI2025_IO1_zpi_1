@@ -20,8 +20,8 @@ import pytest
 from datetime import datetime
 from unittest.mock import patch
 
-from core.cercas import CERCAS
-from core.aggregation_type import AggregationType
+from app.core.cercas import CERCAS
+from app.core.aggregation_type import AggregationType
 
 
 # =============================================================================
@@ -58,7 +58,7 @@ _USD_RATES = [
 def _make_cercas(base="EUR", quote="USD", intervals=5,
                  agg=AggregationType.MONTHLY) -> CERCAS:
     c = CERCAS()
-    with patch("core.cercas.validate_currency"):
+    with patch("app.core.cercas.validate_currency"):
         c.set_pair(base, quote)
     c.set_period(datetime(2023, 1, 1), datetime(2023, 3, 31))
     c.set_type(agg)
@@ -160,7 +160,7 @@ def test_uc2_analysis_blocked_when_pair_missing(capsys):
 
 def test_uc2_analysis_blocked_when_period_missing(capsys):
     c = CERCAS()
-    with patch("core.cercas.validate_currency"):
+    with patch("app.core.cercas.validate_currency"):
         c.set_pair("EUR", "USD")
     c.set_type(AggregationType.MONTHLY)
     c.set_interval(5)
@@ -172,7 +172,7 @@ def test_uc2_analysis_blocked_when_period_missing(capsys):
 def test_uc2_export_blocked_before_analysis(capsys):
     """UC-2: export must fail gracefully if analysis has not been run."""
     c = _make_cercas()
-    c.export("/tmp/no_analysis.csv")
+    c.export("output.csv")
     assert "error" in capsys.readouterr().out.lower()
 
 
@@ -180,7 +180,7 @@ def test_uc2_export_blocked_for_non_csv_extension(capsys):
     """UC-2: export must reject a file path that does not end with .csv."""
     c = _make_cercas()
     c.histogram = [(0.0, 1.0, 3)]
-    c.export("/tmp/output.txt")
+    c.export("output.txt")
     assert "error" in capsys.readouterr().out.lower()
 
 
@@ -196,7 +196,7 @@ def test_uc3_user_can_change_pair_and_rerun():
     first_histogram = c.histogram
 
     # Change to EUR/PLN
-    with patch("core.cercas.validate_currency"):
+    with patch("app.core.cercas.validate_currency"):
         c.set_pair("EUR", "PLN")
 
     eur_pln_rates = [(d, v * 1.1) for d, v in _EUR_RATES]
@@ -232,5 +232,5 @@ def test_uc3_user_can_switch_aggregation_type_and_rerun():
         c.run_analysis()
 
     assert c.histogram is not None
-    # quarterly buckets: fewer periods → histogram may differ
-    assert c.histogram != monthly_histogram or True  # structure may coincide by chance
+    # Jan–Mar = Q1 only → quarterly produces 1 aggregated period; monthly produces 3
+    assert sum(freq for _, _, freq in c.histogram) == 1

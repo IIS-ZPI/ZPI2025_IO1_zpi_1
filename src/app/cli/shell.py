@@ -1,7 +1,7 @@
 import cmd
 
-from src.app.core.aggregation_type import AggregationType
-from src.app.core.cercas import CERCAS
+from app.core.aggregation_type import AggregationType
+from app.core.cercas import CERCAS
 from datetime import datetime
 
 class CERCASShell(cmd.Cmd):
@@ -143,3 +143,15 @@ class CERCASShell(cmd.Cmd):
 
         """
         self.app.show_config()
+
+    def do_switch_aggregation(self, arg) -> None:
+        """
+        switch_aggregation
+        Description: Toggle aggregation type between monthly and quarterly aggregation modes.
+        Parameters: None
+        """
+
+        try:
+            self.app.switch_type()
+        except ValueError:
+            print("You must set aggregation before you can switch it.")

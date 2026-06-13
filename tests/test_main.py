@@ -22,8 +22,8 @@ import pytest
 from datetime import datetime
 from unittest.mock import patch
 
-from core.cercas import CERCAS
-from core.aggregation_type import AggregationType
+from app.core.cercas import CERCAS
+from app.core.aggregation_type import AggregationType
 
 EPS = 1e-9  # tolerance for floating-point comparisons
 
@@ -498,11 +498,11 @@ def test_issue28_exported_frequency_sum_equals_number_of_aggregated_periods():
         return eur_rates if currency == "EUR" else usd_rates
 
     c = CERCAS()
-    c.base                = "EUR"
-    c.quote               = "USD"
-    c.start_date          = datetime(2023, 1, 1)
-    c.end_date            = datetime(2023, 2, 28)
-    c.aggregation_type    = AggregationType.MONTHLY
+    c.base = "EUR"
+    c.quote = "USD"
+    c.start_date = datetime(2023, 1, 1)
+    c.end_date = datetime(2023, 2, 28)
+    c.aggregation_type = AggregationType.MONTHLY
     c.number_of_intervals = 2
 
     with patch.object(c, 'fetch_rates', side_effect=mock_fetch):

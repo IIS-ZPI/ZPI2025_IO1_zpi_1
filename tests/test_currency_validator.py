@@ -10,7 +10,7 @@ SRS sections covered:
 import pytest
 from unittest.mock import patch
 
-from core import currency_validator
+from app.core import currency_validator
 
 
 # =============================================================================
