@@ -1,18 +1,19 @@
 """
 Unit tests for CERCAS – Currency Exchange Rate Change Analysis System.
 
-All tests are derived directly from the Software Requirements Specification (SRS) v1.1.
-Every expected value is computed manually according to the formulas defined in the SRS,
-NOT inferred from the source code.
+All tests are derived from SRS v1.1 + Annex No. 1.
+Every expected value is computed manually according to the formulas defined in
+the SRS and Annex, NOT inferred from the source code.
 
-SRS sections covered:
-    2.3.1  Cross-rate:   cross_rate = base_PLN_rate / quote_PLN_rate
-    2.3.2  Daily change: change[d] = rate[d] - rate[d-1]
-    2.3.3  Aggregation:  sum of daily changes per month or quarter
-    2.3.4  Histogram:    N equal-width bins over [min, max]
-    2.4.1  Export to CSV file
-    2.4.2  Output file must use ".csv" extension
-    2.4.3  CSV header:   interval_start;interval_end;frequency
+SRS / Annex sections covered:
+    2.3.1        Cross-rate:   cross_rate = base_PLN_rate / quote_PLN_rate
+    2.3.2        Daily change: change[d] = rate[d] - rate[d-1]
+    Annex 2.3.3  Aggregation:  sum of daily changes per 30-day window (monthly)
+                               or 90-day window (quarterly) from start_date
+    2.3.4        Histogram:    N equal-width bins over [min, max]
+    2.4.1        Export to CSV file
+    2.4.2        Output file must use ".csv" extension
+    2.4.3        CSV header:   interval_start;interval_end;frequency
 """
 
 import os
@@ -168,66 +169,70 @@ def test_232_three_consecutive_rates_produce_correct_two_changes():
 
 
 # =============================================================================
-# SRS 2.3.3 – Aggregation
+# SRS 2.3.3 / Annex 2.3.5-2.3.6 – Aggregation
 # "The system shall aggregate daily changes by summing them within
-#  each selected period (month or quarter)."
+#  each selected period."
+# Annex 2.3.5: monthly period = 30 consecutive days from start_date.
+# Annex 2.3.6: quarterly period = 90 consecutive days from start_date.
 # =============================================================================
 
-def test_233_monthly_sums_are_computed_per_calendar_month():
+def test_233_monthly_sums_are_computed_per_30_day_window():
     """
-    Manual calculation (MONTHLY):
-        January:  +0.10 + (+0.10) = +0.20
-        February: +0.10 + (-0.20) = -0.10
+    Manual calculation (MONTHLY, start_date = 2023-01-01):
+        Window 0 (days 0-29):  Jan 2 (+0.10) + Jan 3 (+0.10) = +0.20
+        Window 1 (days 30-59): Feb 1 (+0.10) + Feb 2 (-0.20) = -0.10
     """
     c = CERCAS()
+    c.start_date = datetime(2023, 1, 1)
     c.aggregation_type = AggregationType.MONTHLY
     changes = [
-        (datetime(2023, 1, 2), +0.10),
-        (datetime(2023, 1, 3), +0.10),
-        (datetime(2023, 2, 1), +0.10),
-        (datetime(2023, 2, 2), -0.20),
+        (datetime(2023, 1, 2), +0.10),   # day  1 → window 0
+        (datetime(2023, 1, 3), +0.10),   # day  2 → window 0
+        (datetime(2023, 2, 1), +0.10),   # day 31 → window 1
+        (datetime(2023, 2, 2), -0.20),   # day 32 → window 1
     ]
     result = c.aggregate_changes(changes)
     assert len(result) == 2
-    assert abs(result[0] - (+0.20)) < EPS   # January sum
-    assert abs(result[1] - (-0.10)) < EPS   # February sum
+    assert abs(result[0] - (+0.20)) < EPS   # window 0 sum
+    assert abs(result[1] - (-0.10)) < EPS   # window 1 sum
 
 
-def test_233_quarterly_combines_all_three_months_of_a_quarter():
+def test_233_quarterly_combines_90_consecutive_days():
     """
-    Manual calculation (QUARTERLY):
-        Q1 (Jan + Feb + Mar): +0.10 + (-0.05) + 0.20 = +0.25
-        Q2 (Apr only):        +0.30
+    Manual calculation (QUARTERLY, start_date = 2023-01-01):
+        Window 0 (days 0-89):  Jan 5 (+0.10) + Feb 5 (-0.05) + Mar 5 (+0.20) = +0.25
+        Window 1 (days 90+):   Apr 5 (+0.30)
     """
     c = CERCAS()
+    c.start_date = datetime(2023, 1, 1)
     c.aggregation_type = AggregationType.QUARTERLY
     changes = [
-        (datetime(2023, 1, 5), +0.10),
-        (datetime(2023, 2, 5), -0.05),
-        (datetime(2023, 3, 5), +0.20),
-        (datetime(2023, 4, 5), +0.30),
+        (datetime(2023, 1, 5), +0.10),   # day  4 → window 0
+        (datetime(2023, 2, 5), -0.05),   # day 35 → window 0
+        (datetime(2023, 3, 5), +0.20),   # day 63 → window 0
+        (datetime(2023, 4, 5), +0.30),   # day 94 → window 1
     ]
     result = c.aggregate_changes(changes)
     assert len(result) == 2
-    assert abs(result[0] - 0.25) < EPS   # Q1 sum
-    assert abs(result[1] - 0.30) < EPS   # Q2 sum
+    assert abs(result[0] - 0.25) < EPS   # window 0 sum
+    assert abs(result[1] - 0.30) < EPS   # window 1 sum
 
 
 def test_233_aggregated_periods_are_returned_in_chronological_order():
     """
-    Manual reasoning:
-        January change  = +0.50
-        February change = -0.30
-        January must appear first (earlier period -> smaller index).
+    Window 0 (days 0-29): Jan 15 (+0.50).
+    Window 1 (days 30-59): Feb 15 (-0.30).
+    Window 0 must appear first (smaller index = earlier window).
     """
     c = CERCAS()
+    c.start_date = datetime(2023, 1, 1)
     c.aggregation_type = AggregationType.MONTHLY
     changes = [
-        (datetime(2023, 1, 15), +0.50),
-        (datetime(2023, 2, 15), -0.30),
+        (datetime(2023, 1, 15), +0.50),   # day 14 → window 0
+        (datetime(2023, 2, 15), -0.30),   # day 45 → window 1
     ]
     result = c.aggregate_changes(changes)
-    # January (+0.50) must precede February (-0.30)
+    # window 0 (+0.50) must precede window 1 (-0.30)
     assert result[0] > result[1]
 
 

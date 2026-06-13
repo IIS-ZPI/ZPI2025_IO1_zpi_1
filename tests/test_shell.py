@@ -78,31 +78,37 @@ def test_412_shell_set_pair_rejects_invalid_currency_code():
 
 
 # =============================================================================
-# SRS 4.1.3 – set_period
+# Annex 4.1.2 – set_start  (replaces SRS 4.1.3 set_period; Req 2.6.3 removed)
 # =============================================================================
 
-def test_413_shell_set_period_accepts_valid_dates():
+def test_annex_412_shell_set_start_accepts_valid_date():
     shell = CERCASShell()
-    out = _run(shell, "set_period 2023-01-01 2023-03-31")
+    out = _run(shell, "set_start 2023-06-01")
     assert "successfully" in out.lower()
 
 
-def test_413_shell_set_period_stores_dates():
+def test_annex_412_shell_set_start_stores_start_date():
     shell = CERCASShell()
-    _run(shell, "set_period 2023-01-01 2023-03-31")
-    assert shell.app.start_date == datetime(2023, 1, 1)
-    assert shell.app.end_date == datetime(2023, 3, 31)
+    _run(shell, "set_start 2023-06-01")
+    assert shell.app.start_date == datetime(2023, 6, 1)
 
 
-def test_413_shell_set_period_prints_usage_on_bad_format():
+def test_annex_412_shell_set_start_does_not_store_end_date():
+    """Annex: end date is derived during run_analysis, not user-provided."""
     shell = CERCASShell()
-    out = _run(shell, "set_period not-a-date also-bad")
+    _run(shell, "set_start 2023-06-01")
+    assert shell.app.end_date is None
+
+
+def test_annex_412_shell_set_start_prints_usage_on_bad_format():
+    shell = CERCASShell()
+    out = _run(shell, "set_start not-a-date")
     assert "usage" in out.lower()
 
 
-def test_413_shell_set_period_rejects_end_before_start():
+def test_annex_412_shell_set_start_rejects_future_date():
     shell = CERCASShell()
-    out = _run(shell, "set_period 2023-06-01 2023-05-01")
+    out = _run(shell, "set_start 2099-01-01")
     assert shell.app.start_date is None
     assert "error" in out.lower()
 
@@ -147,8 +153,13 @@ def test_414_shell_set_aggregation_invalid_raises_instead_of_printing_error():
 
 def test_415_shell_run_analysis_prints_error_when_pair_not_set():
     shell = CERCASShell()
+<<<<<<< Updated upstream
     shell.app.set_period(datetime(2023, 1, 1), datetime(2023, 3, 31))
     from core.aggregation_type import AggregationType as AT
+=======
+    shell.app.set_start(datetime(2023, 1, 1))
+    from app.core.aggregation_type import AggregationType as AT
+>>>>>>> Stashed changes
     shell.app.aggregation_type = AT.MONTHLY
     shell.app.number_of_intervals = 5
     out = _run(shell, "run_analysis")

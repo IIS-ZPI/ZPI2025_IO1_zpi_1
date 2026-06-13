@@ -58,6 +58,22 @@ class CERCASShell(cmd.Cmd):
         except ValueError:
             print("Usage: set_period <start_date> <end_date>")
 
+    # set_start <start_date>
+    def do_set_start(self, arg) -> None:
+        """
+        set_start <start_date>
+        Description: Define the start date for analysis.
+        Parameters:
+        ● start_date - start date in yyyy-mm-dd format
+
+        """
+        try:
+            y, m, d = arg.strip().split('-')
+            start_date = datetime(int(y), int(m), int(d))
+            self.app.set_start(start_date)
+        except ValueError:
+            print("Usage: set_start <start_date>")
+
     # set_aggregation <type>
     def do_set_aggregation(self, arg) -> None:
         """

@@ -62,6 +62,19 @@ class CERCAS:
         except Exception as e:
             print(f"An error occurred: {e}")
 
+    def set_start(self, start_date: datetime) -> None:
+        try:
+            if start_date < datetime(2002, 1, 2):
+                raise ValueError("start_date must be after 2002-01-02")
+
+            if start_date > datetime.now():
+                raise ValueError("start_date can't be in future.")
+
+            self.start_date = start_date
+            print("Start date set successfully")
+        except Exception as e:
+            print(f"An error occurred: {e}")
+
     def set_type(self, type: AggregationType) -> None:
         self.aggregation_type = type
 
@@ -83,14 +96,20 @@ class CERCAS:
             if self.base is None or self.quote is None:
                 raise ValueError("Currency pair not set.")
 
-            if self.start_date is None or self.end_date is None:
-                raise ValueError("Period not set.")
+            if self.start_date is None:
+                raise ValueError("Start date not set.")
 
             if self.aggregation_type is None:
                 raise ValueError("Aggregation type not set.")
 
             if self.number_of_intervals is None:
                 raise ValueError("Intervals not set.")
+
+            # Annex 2.3.5/2.3.6: end date is derived from aggregation type
+            if self.aggregation_type == AggregationType.MONTHLY:
+                self.end_date = self.start_date + timedelta(days=29)
+            else:
+                self.end_date = self.start_date + timedelta(days=89)
 
             print("Analysis started")
 
@@ -227,16 +246,16 @@ class CERCAS:
             changes.append((date_today, rate_today - rate_yesterday))
         return changes
 
-    def get_period_key(self, date: datetime) -> tuple[int, int]:
+    def get_period_key(self, date: datetime) -> int:
         """
-        Returns (year, month) for monthly
-        Returns (year, quarter) for quarterly
+        Annex 2.3.5: monthly = window of 30 consecutive days from start_date.
+        Annex 2.3.6: quarterly = window of 90 consecutive days from start_date.
+        Returns 0-based window index.
         """
+        delta_days = (date - self.start_date).days
         if self.aggregation_type == AggregationType.MONTHLY:
-            return (date.year, date.month)
-
-        quarter = (date.month - 1) // 3 + 1
-        return (date.year, quarter)
+            return delta_days // 30
+        return delta_days // 90
 
     def aggregate_changes(self, changes: list[tuple[datetime, float]]) -> list[float]:
         """
