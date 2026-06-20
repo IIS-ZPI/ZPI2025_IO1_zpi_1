@@ -4,14 +4,12 @@ Unit tests for CERCAS configuration methods.
 All expected behaviours derived directly from SRS v1.1.
 
 SRS sections covered:
-    2.1.1  set_pair – currency pair in ISO 4217
-    2.1.2  set_period – analysis period in yyyy-mm-dd
-    2.1.3  set_type – aggregation level (monthly / quarterly)
+    2.1.1  set_pair     – currency pair in ISO 4217
+    2.1.2  set_start    – analysis start date in yyyy-mm-dd
+    2.1.3  set_type     – aggregation level (monthly / quarterly)
     2.1.4  set_interval – number of intervals
     2.2.5  Dates not earlier than 2002-01-02
     2.6.1  Currency code validation
-    2.6.3  End date later than start date
-    2.6.4  Analysis period ≤ 3 months
     2.6.5  Interval count must be a positive integer
 """
 
@@ -91,78 +89,66 @@ def test_261_set_pair_does_not_partially_set_on_invalid_quote(capsys):
 
 
 # =============================================================================
-# SRS 2.1.2 / 2.2.5 / 2.6.3 / 2.6.4 – set_period
+# SRS 2.1.2 / 2.2.5 – set_start
 # =============================================================================
 
-def test_212_set_period_stores_start_and_end_dates():
+def test_212_set_start_stores_start_date():
     c = CERCAS()
     start = datetime(2023, 1, 1)
-    end = datetime(2023, 3, 31)
-    c.set_period(start, end)
+    c.set_start(start)
     assert c.start_date == start
-    assert c.end_date == end
 
 
-def test_212_set_period_prints_success_message(capsys):
+def test_212_set_start_prints_success_message(capsys):
     c = CERCAS()
-    c.set_period(datetime(2023, 1, 1), datetime(2023, 3, 1))
+    c.set_start(datetime(2023, 1, 1))
     assert "successfully" in capsys.readouterr().out.lower()
 
 
-def test_225_set_period_rejects_start_before_2002_01_02(capsys):
+def test_225_set_start_rejects_date_before_2002_01_02(capsys):
     """SRS 2.2.5: dates earlier than 2002-01-02 are not allowed."""
     c = CERCAS()
-    c.set_period(datetime(2002, 1, 1), datetime(2002, 3, 1))
+    c.set_start(datetime(2002, 1, 1))
     assert c.start_date is None
     assert "error" in capsys.readouterr().out.lower()
 
 
-def test_225_set_period_accepts_start_on_2002_01_02():
+def test_225_set_start_accepts_date_on_2002_01_02():
     """SRS 2.2.5: 2002-01-02 is the earliest allowed start date."""
     c = CERCAS()
-    c.set_period(datetime(2002, 1, 2), datetime(2002, 3, 2))
+    c.set_start(datetime(2002, 1, 2))
     assert c.start_date == datetime(2002, 1, 2)
 
 
-def test_263_set_period_rejects_end_before_start(capsys):
-    """SRS 2.6.3: end date must be later than start date."""
+def test_212_set_start_rejects_future_date(capsys):
     c = CERCAS()
-    c.set_period(datetime(2023, 6, 1), datetime(2023, 5, 1))
+    c.set_start(datetime(2099, 1, 1))
     assert c.start_date is None
     assert "error" in capsys.readouterr().out.lower()
 
 
-def test_263_set_period_rejects_equal_start_and_end(capsys):
-    """SRS 2.6.3: end date must be strictly later than start date."""
+def test_212_end_date_derived_as_start_plus_30_days_for_monthly():
+    """
+    End date is not stored — it is derived dynamically.
+    MONTHLY: start(2023-01-01) + 30 days = 2023-01-31.
+    """
     c = CERCAS()
-    c.set_period(datetime(2023, 3, 1), datetime(2023, 3, 1))
-    assert c.start_date is None
-    assert "error" in capsys.readouterr().out.lower()
+    c.set_start(datetime(2023, 1, 1))
+    c.set_type(AggregationType.MONTHLY)
+    end = c._CERCAS__get_end_date()
+    assert end == datetime(2023, 1, 31)
 
 
-def test_264_set_period_rejects_period_longer_than_3_months(capsys):
-    """SRS 2.6.4: analysis period must not exceed 3 months."""
+def test_212_end_date_derived_as_start_plus_90_days_for_quarterly():
+    """
+    End date is not stored — it is derived dynamically.
+    QUARTERLY: start(2023-01-01) + 90 days = 2023-04-01.
+    """
     c = CERCAS()
-    c.set_period(datetime(2023, 1, 1), datetime(2023, 5, 2))
-    assert c.start_date is None
-    assert "error" in capsys.readouterr().out.lower()
-
-
-def test_264_set_period_accepts_period_of_exactly_3_months():
-    """SRS 2.6.4: exactly 3 months is within the allowed limit."""
-    c = CERCAS()
-    start = datetime(2023, 1, 1)
-    end = datetime(2023, 4, 1)
-    c.set_period(start, end)
-    assert c.start_date == start
-    assert c.end_date == end
-
-
-def test_set_period_rejects_future_start_date(capsys):
-    c = CERCAS()
-    c.set_period(datetime(2099, 1, 1), datetime(2099, 2, 1))
-    assert c.start_date is None
-    assert "error" in capsys.readouterr().out.lower()
+    c.set_start(datetime(2023, 1, 1))
+    c.set_type(AggregationType.QUARTERLY)
+    end = c._CERCAS__get_end_date()
+    assert end == datetime(2023, 4, 1)
 
 
 # =============================================================================

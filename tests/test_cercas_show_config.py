@@ -29,7 +29,6 @@ def test_417_show_config_reports_base_currency_when_set(capsys):
     c = CERCAS()
     with patch("app.core.cercas.validate_currency"):
         c.set_pair("EUR", "USD")
-    capsys.readouterr()  # discard set_pair output
     c.show_config()
     out = capsys.readouterr().out
     assert "EUR" in out
@@ -65,20 +64,50 @@ def test_417_show_config_reports_dates_not_set_when_none(capsys):
 
 def test_417_show_config_reports_start_date_when_set(capsys):
     c = CERCAS()
-    c.set_period(datetime(2023, 1, 1), datetime(2023, 3, 31))
+    c.set_start(datetime(2023, 1, 1))
     capsys.readouterr()
     c.show_config()
     out = capsys.readouterr().out
     assert "2023-01-01" in out
 
 
-def test_417_show_config_reports_end_date_when_set(capsys):
+def test_417_show_config_reports_end_date_monthly_when_start_and_aggregation_set(capsys):
+    """
+    End date is derived: start(2023-01-01) + 30 days = 2023-01-31 (MONTHLY).
+    """
     c = CERCAS()
-    c.set_period(datetime(2023, 1, 1), datetime(2023, 3, 31))
+    c.set_start(datetime(2023, 1, 1))
+    c.set_type(AggregationType.MONTHLY)
     capsys.readouterr()
     c.show_config()
     out = capsys.readouterr().out
-    assert "2023-03-31" in out
+    assert "2023-01-31" in out
+
+
+def test_417_show_config_reports_end_date_quarterly_when_start_and_aggregation_set(capsys):
+    """
+    End date is derived: start(2023-01-01) + 90 days = 2023-04-01 (QUARTERLY).
+    """
+    c = CERCAS()
+    c.set_start(datetime(2023, 1, 1))
+    c.set_type(AggregationType.QUARTERLY)
+    capsys.readouterr()
+    c.show_config()
+    out = capsys.readouterr().out
+    assert "2023-04-01" in out
+
+
+def test_417_show_config_does_not_show_end_date_when_aggregation_not_set(capsys):
+    """
+    End date cannot be derived without aggregation type — only start date shown.
+    """
+    c = CERCAS()
+    c.set_start(datetime(2023, 1, 1))
+    capsys.readouterr()
+    c.show_config()
+    out = capsys.readouterr().out
+    assert "2023-01-01" in out
+    assert "isn't set" in out.lower() or "not set" in out.lower()
 
 
 # =============================================================================
@@ -131,11 +160,14 @@ def test_417_show_config_reports_interval_count_when_set(capsys):
 
 
 def test_417_show_config_full_config_displays_all_fields(capsys):
-    """When all fields are set, show_config must print all of them."""
+    """
+    When all fields are set, show_config must print all of them.
+    End date derived: start(2023-06-01) + 90 days = 2023-08-30 (QUARTERLY).
+    """
     c = CERCAS()
     with patch("app.core.cercas.validate_currency"):
         c.set_pair("GBP", "PLN")
-    c.set_period(datetime(2023, 6, 1), datetime(2023, 8, 31))
+    c.set_start(datetime(2023, 6, 1))
     c.set_type(AggregationType.QUARTERLY)
     c.set_interval(4)
     capsys.readouterr()
@@ -145,5 +177,7 @@ def test_417_show_config_full_config_displays_all_fields(capsys):
 
     assert "GBP" in out
     assert "PLN" in out
+    assert "2023-06-01" in out
+    assert "2023-08-30" in out
     assert "quarterly" in out.lower()
     assert "4" in out
