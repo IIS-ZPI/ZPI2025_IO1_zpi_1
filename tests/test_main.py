@@ -8,8 +8,7 @@ NOT inferred from the source code.
 SRS sections covered:
     2.3.1  Cross-rate:   cross_rate = base_PLN_rate / quote_PLN_rate
     2.3.2  Daily change: change[d] = rate[d] - rate[d-1]
-    2.3.3  Aggregation:  sum of daily changes per month or quarter
-    2.3.4  Histogram:    N equal-width bins over [min, max]
+    2.3.4  Histogram:    N equal-width bins over [min, max] of daily changes
     2.4.1  Export to CSV file
     2.4.2  Output file must use ".csv" extension
     2.4.3  CSV header:   interval_start;interval_end;frequency
@@ -17,7 +16,6 @@ SRS sections covered:
 
 import os
 import tempfile
-import pytest
 from datetime import datetime
 from unittest.mock import patch
 
@@ -116,9 +114,9 @@ def test_232_daily_change_equals_current_rate_minus_previous_rate():
         (datetime(2023, 1, 2), 1.00),
         (datetime(2023, 1, 3), 1.10),
     ]
-    result = c.daily_changes(series)
+    result = c.compute_daily_changes(series)
     assert len(result) == 1
-    assert abs(result[0][1] - 0.10) < EPS
+    assert abs(result[0] - 0.10) < EPS
 
 
 def test_232_daily_change_is_negative_when_rate_falls():
@@ -132,8 +130,8 @@ def test_232_daily_change_is_negative_when_rate_falls():
         (datetime(2023, 1, 2), 1.10),
         (datetime(2023, 1, 3), 1.00),
     ]
-    result = c.daily_changes(series)
-    assert abs(result[0][1] - (-0.10)) < EPS
+    result = c.compute_daily_changes(series)
+    assert abs(result[0] - (-0.10)) < EPS
 
 
 def test_232_n_sessions_produce_n_minus_1_daily_changes():
@@ -144,7 +142,7 @@ def test_232_n_sessions_produce_n_minus_1_daily_changes():
     """
     c = CERCAS()
     series = [(datetime(2023, 1, i), float(i)) for i in range(2, 7)]  # 5 elements
-    result = c.daily_changes(series)
+    result = c.compute_daily_changes(series)
     assert len(result) == 4
 
 
@@ -161,79 +159,15 @@ def test_232_three_consecutive_rates_produce_correct_two_changes():
         (datetime(2023, 1, 3), 2.20),
         (datetime(2023, 1, 4), 2.10),
     ]
-    result = c.daily_changes(series)
+    result = c.compute_daily_changes(series)
     assert len(result) == 2
-    assert abs(result[0][1] - (+0.20)) < EPS
-    assert abs(result[1][1] - (-0.10)) < EPS
-
-
-# =============================================================================
-# SRS 2.3.3 – Aggregation
-# "The system shall aggregate daily changes by summing them within
-#  each selected period (month or quarter)."
-# =============================================================================
-
-def test_233_monthly_sums_are_computed_per_calendar_month():
-    """
-    Manual calculation (MONTHLY):
-        January:  +0.10 + (+0.10) = +0.20
-        February: +0.10 + (-0.20) = -0.10
-    """
-    c = CERCAS()
-    c.aggregation_type = AggregationType.MONTHLY
-    changes = [
-        (datetime(2023, 1, 2), +0.10),
-        (datetime(2023, 1, 3), +0.10),
-        (datetime(2023, 2, 1), +0.10),
-        (datetime(2023, 2, 2), -0.20),
-    ]
-    result = c.aggregate_changes(changes)
-    assert len(result) == 2
-    assert abs(result[0] - (+0.20)) < EPS   # January sum
-    assert abs(result[1] - (-0.10)) < EPS   # February sum
-
-
-def test_233_quarterly_combines_all_three_months_of_a_quarter():
-    """
-    Manual calculation (QUARTERLY):
-        Q1 (Jan + Feb + Mar): +0.10 + (-0.05) + 0.20 = +0.25
-        Q2 (Apr only):        +0.30
-    """
-    c = CERCAS()
-    c.aggregation_type = AggregationType.QUARTERLY
-    changes = [
-        (datetime(2023, 1, 5), +0.10),
-        (datetime(2023, 2, 5), -0.05),
-        (datetime(2023, 3, 5), +0.20),
-        (datetime(2023, 4, 5), +0.30),
-    ]
-    result = c.aggregate_changes(changes)
-    assert len(result) == 2
-    assert abs(result[0] - 0.25) < EPS   # Q1 sum
-    assert abs(result[1] - 0.30) < EPS   # Q2 sum
-
-
-def test_233_aggregated_periods_are_returned_in_chronological_order():
-    """
-    Manual reasoning:
-        January change  = +0.50
-        February change = -0.30
-        January must appear first (earlier period -> smaller index).
-    """
-    c = CERCAS()
-    c.aggregation_type = AggregationType.MONTHLY
-    changes = [
-        (datetime(2023, 1, 15), +0.50),
-        (datetime(2023, 2, 15), -0.30),
-    ]
-    result = c.aggregate_changes(changes)
-    # January (+0.50) must precede February (-0.30)
-    assert result[0] > result[1]
+    assert abs(result[0] - (+0.20)) < EPS
+    assert abs(result[1] - (-0.10)) < EPS
 
 
 # =============================================================================
 # SRS 2.3.4 – Histogram
-# "The system shall group aggregated changes into dynamically calculated
+# "The system shall group daily changes into dynamically calculated
 #  value ranges based on the entered number of intervals."
 # =============================================================================
 
@@ -265,7 +199,7 @@ def test_234_histogram_returns_exactly_n_bins():
 def test_234_sum_of_all_bin_frequencies_equals_number_of_values():
     """
     Manual reasoning:
-        6 aggregated values, N = 3
+        6 daily change values, N = 3
         Each value goes to exactly one bin -> total frequencies = 6.
     """
     c = CERCAS()
@@ -396,12 +330,12 @@ def test_243_csv_frequency_values_match_manually_computed_histogram():
 
 
 # =============================================================================
-# Full pipeline integration – SRS 2.3.1 through 2.3.4
+# Full pipeline integration – SRS 2.3.1, 2.3.2, 2.3.4
 # =============================================================================
 
-def test_full_pipeline_eur_usd_monthly_histogram_matches_manual_calculation():
+def test_full_pipeline_eur_usd_histogram_matches_manual_calculation():
     """
-    End-to-end test with mocked NBP API.  All expected values computed by hand.
+    End-to-end test with mocked NBP API. All expected values computed by hand.
 
     Input (USD/PLN held constant at 1.00 so cross-rate = EUR/PLN directly):
         EUR/PLN:  Jan 1 -> 1.00
@@ -420,16 +354,14 @@ def test_full_pipeline_eur_usd_monthly_histogram_matches_manual_calculation():
         Jan 3:  1.20 - 1.10 = +0.10
         Feb 1:  1.30 - 1.20 = +0.10
         Feb 2:  1.10 - 1.30 = -0.20
+        Total: 4 daily changes
 
-    Step 3 - Monthly aggregation (SRS 2.3.3):
-        January:   +0.10 + 0.10        = +0.20
-        February:  +0.10 + (-0.20)     = -0.10
+    Step 3 - Histogram N=2 (SRS 2.3.4):
+        min = -0.20,  max = +0.10
+        step = (0.10 - (-0.20)) / 2 = 0.30 / 2 = 0.15
 
-    Step 4 - Histogram N=2 (SRS 2.3.4):
-        min = -0.10,  max = +0.20
-        step = (0.20 - (-0.10)) / 2 = 0.30 / 2 = 0.15
-        Bin 0: [-0.10,  0.05)  ->  -0.10  ->  freq = 1
-        Bin 1: [ 0.05,  0.20]  ->  +0.20  ->  freq = 1
+        Bin 0: [-0.20, -0.05)  ->  -0.20              -> freq = 1
+        Bin 1: [-0.05, +0.10]  ->  +0.10, +0.10, +0.10 -> freq = 3
     """
     eur_rates = [
         (datetime(2023, 1, 1), 1.00),
@@ -447,7 +379,6 @@ def test_full_pipeline_eur_usd_monthly_histogram_matches_manual_calculation():
     c.base                = "EUR"
     c.quote               = "USD"
     c.start_date          = datetime(2023, 1, 1)
-    c.end_date            = datetime(2023, 2, 28)
     c.aggregation_type    = AggregationType.MONTHLY
     c.number_of_intervals = 2
 
@@ -457,28 +388,28 @@ def test_full_pipeline_eur_usd_monthly_histogram_matches_manual_calculation():
     assert c.histogram is not None
     assert len(c.histogram) == 2
 
-    # Total frequencies must equal 2 (one per aggregated period: Jan + Feb)
-    assert sum(freq for _, _, freq in c.histogram) == 2
+    # Total frequencies must equal 4 (one per daily change)
+    assert sum(freq for _, _, freq in c.histogram) == 4
 
-    # Bin 0 contains February (-0.10), Bin 1 contains January (+0.20)
+    # Bin 0: freq=1 (-0.20), Bin 1: freq=3 (three +0.10 changes)
     assert c.histogram[0][2] == 1
-    assert c.histogram[1][2] == 1
+    assert c.histogram[1][2] == 3
 
 
 # =============================================================================
 # Issue #28 – Export Analysis frequency some data is lost
 # "When exported histogram has less data in frequency when it should have."
 # The sum of all bin frequencies in the exported CSV must equal the number
-# of aggregated periods. No data should be lost during export.
+# of daily changes. No data should be lost during export.
 # =============================================================================
 
-def test_issue28_exported_frequency_sum_equals_number_of_aggregated_periods():
+def test_issue28_exported_frequency_sum_equals_number_of_daily_changes():
     """
     Regression test for Issue #28.
 
-    Manual calculation (same as full pipeline test):
-        2 monthly aggregated values → histogram total frequency must be 2.
-        After export to CSV, sum of all frequency fields must also equal 2.
+    Manual calculation (same data as full pipeline test):
+        4 daily changes -> histogram total frequency must be 4.
+        After export to CSV, sum of all frequency fields must also equal 4.
     """
     eur_rates = [
         (datetime(2023, 1, 1), 1.00),
@@ -493,11 +424,10 @@ def test_issue28_exported_frequency_sum_equals_number_of_aggregated_periods():
         return eur_rates if currency == "EUR" else usd_rates
 
     c = CERCAS()
-    c.base = "EUR"
-    c.quote = "USD"
-    c.start_date = datetime(2023, 1, 1)
-    c.end_date = datetime(2023, 2, 28)
-    c.aggregation_type = AggregationType.MONTHLY
+    c.base                = "EUR"
+    c.quote               = "USD"
+    c.start_date          = datetime(2023, 1, 1)
+    c.aggregation_type    = AggregationType.MONTHLY
     c.number_of_intervals = 2
 
     with patch.object(c, 'fetch_rates', side_effect=mock_fetch):
@@ -512,10 +442,10 @@ def test_issue28_exported_frequency_sum_equals_number_of_aggregated_periods():
         with open(path, encoding="utf-8") as f:
             rows = [line.strip() for line in f if line.strip()]
         data_rows = rows[1:]  # skip header
-        assert len(data_rows) == 2, "Exported CSV must contain all bins, including zero-frequency ones"
+        assert len(data_rows) == 2, "Exported CSV must contain all bins"
         total_exported_freq = sum(int(row.split(";")[2]) for row in data_rows)
-        assert total_exported_freq == 2, (
-            f"Issue #28: exported frequency sum is {total_exported_freq}, expected 2 — data was lost"
+        assert total_exported_freq == 4, (
+            f"Issue #28: exported frequency sum is {total_exported_freq}, expected 4 — data was lost"
         )
     finally:
         os.unlink(path)

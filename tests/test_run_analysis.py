@@ -1,4 +1,3 @@
-import pytest
 from datetime import datetime
 from unittest.mock import patch
 from app.core.aggregation_type import AggregationType
@@ -42,7 +41,6 @@ def ready_cercas(**overrides) -> CERCAS:
     c.base = overrides.get("base", "USD")
     c.quote = overrides.get("quote", "EUR")
     c.start_date = overrides.get("start_date", datetime(2024, 1, 2))
-    c.end_date = overrides.get("end_date", datetime(2024, 3, 31))
     c.aggregation_type = overrides.get("aggregation_type", AggregationType.MONTHLY)
     c.number_of_intervals = overrides.get("number_of_intervals", 5)
     return c
@@ -66,11 +64,6 @@ class TestRunAnalysisMissingConfig:
 
     def test_no_start_date(self):
         c = ready_cercas(start_date=None)
-        c.run_analysis()
-        assert c.histogram is None
-
-    def test_no_end_date(self):
-        c = ready_cercas(end_date=None)
         c.run_analysis()
         assert c.histogram is None
 

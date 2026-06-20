@@ -160,16 +160,16 @@ class CERCAS:
         end_str = end_date.strftime("%Y-%m-%d")
         currency_api = currency.lower()
 
-        for table in ["A", "B"]:
-            url = f"https://api.nbp.pl/api/exchangerates/rates/{table}/{currency_api}/{start_str}/{end_str}/?format=json"
-            r = get(url)
+        url = f"https://api.nbp.pl/api/exchangerates/rates/A/{currency_api}/{start_str}/{end_str}/?format=json"
 
-            if r.status_code == 200:
-                data = r.json()
-                return [
-                    (datetime.strptime(x["effectiveDate"], "%Y-%m-%d"), x["mid"])
-                    for x in data["rates"]
-                ]
+        r = get(url)
+
+        if r.status_code == 200:
+            data = r.json()
+            return [
+                (datetime.strptime(x["effectiveDate"], "%Y-%m-%d"), x["mid"])
+                for x in data["rates"]
+            ]
 
         raise ValueError(f"Currency {currency} not found in NBP Table A or B.")
 
