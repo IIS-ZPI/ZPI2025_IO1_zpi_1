@@ -84,6 +84,13 @@ class CERCAS:
             if self.number_of_intervals is None:
                 raise ValueError("Intervals not set.")
 
+            end_date = self.__get_end_date()
+            if end_date > datetime.now():
+                raise ValueError(
+                    f"Analysis period ends in the future ({end_date.date()}). "
+                    f"Choose an earlier start date."
+                )
+
             print("Analysis started")
 
             base_rates = self.fetch_rates(self.base)
