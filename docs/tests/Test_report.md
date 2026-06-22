@@ -1,6 +1,6 @@
-# Application Test Report No. 1
+# Application Test Report No. 2
 
-**2026-06-11**
+**2026-06-22** *(Report No. 1 dated 2026-06-11)*
 
 ---
 
@@ -41,8 +41,14 @@ Found: commit `447b2cf` (2026-06-09) · Fixed: commit `560bbe6` (2026-06-10)
 c) **Bug #3 – Missing `switch_aggregation` command in the CLI interface (SRS 4.1.8)**
 Found: commit `447b2cf` (2026-06-09) · Fixed: commit `560bbe6` (2026-06-10)
 
-d) **Bug #4 – `do_set_aggregation` throws a `ValueError` exception instead of printing a message to the user**
-Location: `src/app/cli/shell.py` · detected by test `test_414_shell_set_aggregation_invalid_raises_instead_of_printing_error`
+d) **Bug #4 – `do_set_aggregation` threw a `ValueError` exception instead of printing a message to the user**
+Found: commit `447b2cf` (2026-06-09) · Fixed in the `else` branch of `do_set_aggregation` (now prints "Usage: set_aggregation...") · confirmed by test `test_414_shell_set_aggregation_invalid_prints_usage`
+
+e) **Bug #5 – Test file `text_exchange_rates_calculations.py` was never discovered by pytest**
+Found: 2026-06-22 · The file prefix `text_` instead of `test_` prevented pytest from collecting 22 tests. · Fixed: renamed to `test_exchange_rates_calculations.py`
+
+f) **Bug #6 – Acceptance test `test_uc2_export_blocked_for_non_csv_extension` contained no assertion**
+Found: 2026-06-22 · The test called `c.export("output.txt")` but never asserted anything, making it a vacuous pass. · Fixed: added `assert "error" in capsys.readouterr().out.lower()` and `assert not os.path.exists("output.txt")`
 
 **2) To be done.**
 
@@ -132,7 +138,7 @@ Location: `src/app/cli/shell.py` · detected by test `test_414_shell_set_aggrega
 
 ---
 
-### Bug #4a – `do_set_aggregation` throws an exception instead of printing a message
+### Bug #4a – `do_set_aggregation` threw an exception instead of printing a message
 
 **Detected by:** Wiktor Różański
 
@@ -140,19 +146,65 @@ Location: `src/app/cli/shell.py` · detected by test `test_414_shell_set_aggrega
 
 **Priority:** Low — the user error is not handled gracefully, but the application does not lose data
 
-**Reproducibility:** 100% — every call to `set_aggregation <invalid_value>` reproduces the behaviour
+**Reproducibility:** 100% — every call to `set_aggregation <invalid_value>` reproduced the behaviour
 
 **Browser:** not applicable (CLI application)
 
 **Location of the problem:** `src/app/cli/shell.py` → `do_set_aggregation` method → `else` branch
 
-**Steps to reproduce:**
+**Steps to reproduce (historical):**
 
 1. Launch the application: `source .venv/bin/activate && python -m app`
 2. Enter an invalid value: `set_aggregation WEEKLY`
-3. The shell raises an unhandled `ValueError: Invalid aggregation type` instead of printing a hint
+3. The shell raised an unhandled `ValueError: Invalid aggregation type` instead of printing a hint
 
-**Test result:** When the user provides an unsupported aggregation type, the `do_set_aggregation` method executes `raise ValueError("Invalid aggregation type")` instead of printing a user-friendly message (e.g. `Usage: set_aggregation <MONTHLY|QUARTERLY>`). The code even contains a commented-out line with the correct solution (`#print("Usage: set_type <type>")`). The defect remains present — requires fixing in a future sprint.
+**Test result:** When the user provided an unsupported aggregation type, the `do_set_aggregation` method executed `raise ValueError("Invalid aggregation type")` instead of printing a user-friendly message. **This defect has been fixed** — the `else` branch now executes `print("Usage: set_aggregation <type> (MONTHLY or QUARTERLY)")`. Confirmed by passing test `test_414_shell_set_aggregation_invalid_prints_usage`.
+
+---
+
+### Bug #5a – Test file `text_exchange_rates_calculations.py` never discovered by pytest
+
+**Detected by:** Wiktor Różański
+
+**Report in which detected:** Report No. 2 (2026-06-22)
+
+**Priority:** High — 22 unit tests using real historical NBP data fixtures were silently never executed
+
+**Reproducibility:** 100% — pytest's default collection rule requires filenames to start with `test_`
+
+**Browser:** not applicable (CLI application)
+
+**Location of the problem:** `tests/text_exchange_rates_calculations.py` — incorrect filename prefix (`text_` instead of `test_`)
+
+**Steps to reproduce:**
+
+1. Run `pytest --collect-only` and observe the file is absent from the collected list
+2. Note that 22 tests covering `build_cross_rate_series`, `compute_daily_changes`, and `build_histogram` with real NBP historical data are never run
+
+**Test result:** File renamed to `test_exchange_rates_calculations.py`. All 22 tests pass. Total test count increased from 123 to 145.
+
+---
+
+### Bug #6a – Acceptance test `test_uc2_export_blocked_for_non_csv_extension` contained no assertion
+
+**Detected by:** Wiktor Różański
+
+**Report in which detected:** Report No. 2 (2026-06-22)
+
+**Priority:** Medium — the test would pass even if the underlying code did not print an error or created the file
+
+**Reproducibility:** 100% — the test body ended without any `assert` statement
+
+**Browser:** not applicable (CLI application)
+
+**Location of the problem:** `tests/test_acceptance.py` → `test_uc2_export_blocked_for_non_csv_extension`
+
+**Steps to reproduce:**
+
+1. Remove the error-printing logic from `CERCAS.export()`
+2. Run the test — it still passes despite the bug in production code
+
+**Test result:** Added `assert "error" in capsys.readouterr().out.lower()` to verify the error message is printed, and `assert not os.path.exists("output.txt")` to confirm no file is created. Both assertions now pass.
 
 ---
 
@@ -160,24 +212,29 @@ Location: `src/app/cli/shell.py` · detected by test `test_414_shell_set_aggrega
 
 **1. Were we able to carry out the planned tests?**
 
-Yes. All 130 tests described in TESTS.md were executed and completed with an OK status after the detected defects were fixed. All key application areas were covered: validation, configuration, data processing, CSV export, and the CLI interface, including end-to-end acceptance tests (UC-1, UC-2, UC-3).
+Yes. All 145 tests listed in `Tests_Manual.md` were executed and completed with an OK status. All key application areas are covered: currency validation, configuration setters, `show_config`, core calculation pipeline (cross-rate, daily changes, histogram), CSV export, the CLI interface, and end-to-end acceptance tests (UC-1, UC-2, UC-3). In this report (No. 2) two additional bugs were discovered and fixed (Bugs #5 and #6), bringing the total test count from 123 to 145.
 
 **2. Were there any difficulties?**
 
-During the first run of the test suite (`testy_vol2`, commit `447b2cf`) three tests were intentionally failing — they were tests designed to expose known bugs in the production code (Bugs #1, #2, #3). Fixing those defects by DariuszPasiński (commit `560bbe6`, 2026-06-10) caused all tests to pass. Before merging into the `develop` branch, it was also necessary to fix the application launch (commit `9a3e3da`) following modifications introduced by the tests — the `src/app/__main__.py` file required an import correction.
+During the first run of the test suite (`testy_vol2`, commit `447b2cf`) three tests were intentionally failing — they were tests designed to expose known bugs in the production code (Bugs #1, #2, #3). Fixing those defects (commit `560bbe6`, 2026-06-10) caused all tests to pass. Before merging into the `develop` branch, it was also necessary to fix the application launch (commit `9a3e3da`) following modifications introduced by the tests — the `src/app/__main__.py` file required an import correction.
+
+In Report No. 2 (2026-06-22) a discrepancy was found between `Tests_Manual.md` (which described non-existent test names and a file called `test_run_analisys.py`) and the actual test suite. The root cause was that `text_exchange_rates_calculations.py` was never renamed to `test_exchange_rates_calculations.py`, leaving 22 tests undiscovered. The manual was rewritten to match the actual state of the code.
 
 **3. Time estimate verification.**
 
-The estimated total testing time was approx. **9.5 h**. The actual time was close to the estimate — writing regression tests (particularly for Issue #28 and the UC-1–UC-3 acceptance tests) turned out to be slightly more time-consuming due to the need to manually calculate expected values from the SRS formulas.
+The estimated total testing time for the first report was approx. **9.5 h**. The actual time was close to the estimate. The additional triage and fixes in Report No. 2 (renaming the file, fixing the vacuous acceptance test, rewriting the manual) took approximately **1 h**.
 
 **4. Risks that materialised.**
 
-- Risk: "Missing CLI commands" — materialised (Bug #3, missing `switch_aggregation`). This risk can be removed from the test plan.
-- Risk: "Incorrect validation of date ranges and interval values" — materialised (Bug #1 and Bug #2). This risk can be removed from the test plan.
-- New risk to add to the test plan: user error handling in the CLI (Bug #4 still present — all commands should be reviewed for consistent handling of invalid user input).
+- Risk: "Missing CLI commands" — materialised (Bug #3, missing `switch_aggregation`). **Removed from test plan.**
+- Risk: "Incorrect validation of date ranges and interval values" — materialised (Bug #1 and Bug #2). **Removed from test plan.**
+- Risk: "User error handling inconsistency in CLI" — materialised (Bug #4). **Fixed and removed from test plan.**
+- New risk discovered: silent test gaps caused by naming conventions (Bug #5 — `text_` prefix). All test files should be reviewed to ensure they start with `test_`.
+- New risk discovered: acceptance tests without assertions can create false confidence. All acceptance tests should be audited for meaningful `assert` statements.
 
 **5. Lessons learned.**
 
 - Boundary conditions (`<` vs `<=`, `> 0` vs `>= 0`) are a frequent source of off-by-one errors. For every validation condition, a boundary value test should be written immediately alongside the implementation.
 - CLI methods (`do_*`) should consistently handle all exceptions internally — they should never propagate them to the user. Unifying the `try/except → print(usage)` pattern across all `do_*` methods will eliminate this entire class of potential bugs.
-- The acceptance tests (UC-1–UC-3) caught the Issue #28 regression (the CSV export was losing data when all histogram values were identical) — it is worth extending these tests with more edge-case scenarios covering unusual NBP API data.
+- Every acceptance test must contain at least one `assert` statement. A test body that merely calls the production function without asserting anything is no better than no test at all — it will always pass regardless of whether the code is correct.
+- Test file naming must follow the `test_*.py` convention. Any file starting with `text_`, `tests_`, or another prefix will be silently skipped by pytest, creating gaps in coverage with no visible indication of the problem.

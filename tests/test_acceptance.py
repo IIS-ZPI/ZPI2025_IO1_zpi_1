@@ -189,9 +189,12 @@ def test_uc2_export_blocked_before_analysis(capsys):
 
 
 def test_uc2_export_blocked_for_non_csv_extension(capsys):
+    """UC-2: export to a non-.csv path must be rejected with an error message."""
     c = CERCAS()
     c.histogram = [(0.0, 1.0, 3)]
     c.export("output.txt")
+    assert "error" in capsys.readouterr().out.lower()
+    assert not os.path.exists("output.txt")
 
 
 # =============================================================================
