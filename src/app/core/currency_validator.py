@@ -2,12 +2,12 @@ import re
 import requests
 
 NBP_TABLE_URLS = [
-        "https://api.nbp.pl/api/exchangerates/tables/A?format=json"
-    ]
+    "https://api.nbp.pl/api/exchangerates/tables/A?format=json"
+]
 
 def validate_currency(code: str) -> None:
     if not is_iso4217_format(code):
-        raise ValueError (
+        raise ValueError(
             f"Invalid currency format: {code}. Must be ISO 4217 (3 uppercase letters, e.g. USD, EUR)."
         )
 
@@ -24,7 +24,6 @@ def is_iso4217_format(code: str) -> bool:
 
 def fetch_all_nbp_codes() -> set[str]:
     codes = fetch_nbp_codes(NBP_TABLE_URLS[0])
-
     # PLN is not listed in A/B tables (NBP base currency)
     return codes.union({"PLN"})
 

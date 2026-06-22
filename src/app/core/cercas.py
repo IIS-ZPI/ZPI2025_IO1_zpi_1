@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta
-from dateutil.relativedelta import relativedelta
 from requests import get
 from app.core.currency_validator import validate_currency
 from app.core.aggregation_type import AggregationType
@@ -9,11 +8,8 @@ class CERCAS:
     def __init__(self):
         self.histogram = None
         self.base: str | None = None
-        self.base_table: str | None = None
         self.quote: str | None = None
-        self.quote_table: str | None = None
         self.start_date: datetime | None = None
-        self.end_date: datetime | None = None
         self.aggregation_type: AggregationType | None = None
         self.number_of_intervals: int | None = None
 
@@ -25,46 +21,28 @@ class CERCAS:
             validate_currency(base)
             validate_currency(quote)
 
-            self.base = base.upper()
-            self.quote = quote.upper()
+            self.base = base
+            self.quote = quote
 
             print("Pair set successfully")
         except Exception as e:
             print(f"An error occurred: {e}")
-            return
 
-    def set_period(self, start_date: datetime, end_date: datetime) -> None:
+    def set_start(self, start_date: datetime) -> None:
         try:
-            if start_date + relativedelta(months=3) < end_date:
-                raise ValueError(
-                    f"period can't be longer then 3 months"
-                )
-
             if start_date < datetime(2002, 1, 2):
-                raise ValueError(
-                    f"start_date must be after 2002-01-02"
-                )
-
-            if end_date <= start_date:
-                raise ValueError(
-                    f"start_date ({start_date}) must be greater than end_date ({end_date})"
-                )
+                raise ValueError("start_date must be after 2002-01-02")
 
             if start_date > datetime.now():
-                raise ValueError(
-                    f"start_date can't be in future."
-                )
+                raise ValueError("start_date can't be in the future")
 
             self.start_date = start_date
-            self.end_date = end_date
-
-            print("Period set successfully")
+            print("Start date set successfully")
         except Exception as e:
             print(f"An error occurred: {e}")
 
     def set_type(self, type: AggregationType) -> None:
         self.aggregation_type = type
-
         print("Aggregation type set successfully")
 
     def switch_type(self) -> None:
@@ -74,6 +52,7 @@ class CERCAS:
             self.aggregation_type = AggregationType.MONTHLY
         else:
             self.aggregation_type = AggregationType.QUARTERLY
+        print(f"Aggregation type switched to {self.aggregation_type.value}")
 
     def set_interval(self, number: int) -> None:
         try:
@@ -81,24 +60,36 @@ class CERCAS:
                 self.number_of_intervals = number
             else:
                 raise ValueError("Interval must be positive")
-
             print("Interval set successfully")
         except Exception as e:
             print(f"An error occurred: {e}")
+
+    def __get_end_date(self) -> datetime:
+        if self.aggregation_type == AggregationType.MONTHLY:
+            return self.start_date + timedelta(days=30)
+        else:
+            return self.start_date + timedelta(days=90)
 
     def run_analysis(self) -> None:
         try:
             if self.base is None or self.quote is None:
                 raise ValueError("Currency pair not set.")
 
-            if self.start_date is None or self.end_date is None:
-                raise ValueError("Period not set.")
+            if self.start_date is None:
+                raise ValueError("Start date not set.")
 
             if self.aggregation_type is None:
                 raise ValueError("Aggregation type not set.")
 
             if self.number_of_intervals is None:
                 raise ValueError("Intervals not set.")
+
+            end_date = self.__get_end_date()
+            if end_date > datetime.now():
+                raise ValueError(
+                    f"Analysis period ends in the future ({end_date.date()}). "
+                    f"Choose an earlier start date."
+                )
 
             print("Analysis started")
 
@@ -110,10 +101,9 @@ class CERCAS:
             if len(series) < 2:
                 raise ValueError("Not enough data points returned from NBP API.")
 
-            daily_changes = self.daily_changes(series)
-            aggregated_values = self.aggregate_changes(daily_changes)
+            daily_changes = self.compute_daily_changes(series)
 
-            self.histogram = self.build_histogram(aggregated_values)
+            self.histogram = self.build_histogram(daily_changes)
 
             print("Analysis completed successfully.")
         except Exception as e:
@@ -138,28 +128,30 @@ class CERCAS:
 
     def show_config(self) -> None:
         if self.base is None:
-            print(f"Base currency isn't set.")
-            print(f"Quote currency isn't set.")
+            print("Base currency isn't set.")
+            print("Quote currency isn't set.")
         else:
             print(f"Base currency is: {self.base}")
             print(f"Quote currency is: {self.quote}")
 
         if self.start_date is None:
-            print(f"Start date isn't set.")
-            print(f"End date isn't set.")
+            print("Start date isn't set.")
+        elif self.aggregation_type is not None:
+            end_date = self.__get_end_date()
+            print(f"Period: {self.start_date.date()} → {end_date.date()}")
         else:
             print(f"Start date is: {self.start_date.date()}")
-            print(f"End date is: {self.end_date.date()}")
+            print("End date: not available yet (set aggregation type first)")
 
         if self.aggregation_type is None:
-            print(f"Aggregation level for the analysis isn't set.")
+            print("Aggregation level for the analysis isn't set.")
         elif self.aggregation_type == AggregationType.MONTHLY:
-            print(f"Aggregation level for the analysis is set to monthly.")
+            print("Aggregation level for the analysis is set to monthly.")
         else:
-            print(f"Aggregation level for the analysis is set to quarterly.")
+            print("Aggregation level for the analysis is set to quarterly.")
 
         if self.number_of_intervals is None:
-            print(f"Number of intervals isn't set.")
+            print("Number of intervals isn't set.")
         else:
             print(f"Number of intervals is: {self.number_of_intervals}")
 
@@ -170,101 +162,73 @@ class CERCAS:
         if currency == "PLN":
             return []
 
+        end_date = self.__get_end_date()
+        start_str = self.start_date.strftime("%Y-%m-%d")
+        end_str = end_date.strftime("%Y-%m-%d")
         currency_api = currency.lower()
 
-        all_rates: list[tuple[datetime, float]] = []
+        url = f"https://api.nbp.pl/api/exchangerates/rates/A/{currency_api}/{start_str}/{end_str}/?format=json"
 
-        current_start = self.start_date
-        while current_start <= self.end_date:
-            current_end = min(current_start + timedelta(days=360), self.end_date)
+        r = get(url)
 
-            start_str = current_start.strftime("%Y-%m-%d")
-            end_str = current_end.strftime("%Y-%m-%d")
+        if r.status_code == 200:
+            data = r.json()
+            return [
+                (datetime.strptime(x["effectiveDate"], "%Y-%m-%d"), x["mid"])
+                for x in data["rates"]
+            ]
 
-            success = False
-
-            for table in ["A", "B"]:
-                url = f"https://api.nbp.pl/api/exchangerates/rates/{table}/{currency_api}/{start_str}/{end_str}/?format=json"
-                r = get(url)
-
-                if r.status_code == 200:
-                    data = r.json()
-                    all_rates.extend(
-                        (datetime.strptime(x["effectiveDate"], "%Y-%m-%d"), x["mid"])
-                        for x in data["rates"]
-                    )
-                    success = True
-                    break
-
-            if not success:
-                raise ValueError(f"Currency {currency} not found in NBP Table A or B.")
-
-            current_start = current_end + timedelta(days=1)
-
-        return all_rates
+        raise ValueError(f"Currency {currency} not found in NBP Table A or B.")
 
     def build_cross_rate_series(
-            self,
-            base_rates: list[tuple[datetime, float]],
-            quote_rates: list[tuple[datetime, float]],
+        self,
+        base_rates: list[tuple[datetime, float]],
+        quote_rates: list[tuple[datetime, float]],
     ) -> list[tuple[datetime, float]]:
         """
         Returns aligned series of (date, base/quote).
         Uses intersection of available dates.
-        """
 
+        NBP always quotes against PLN, so:
+          - base_rates  = base/PLN
+          - quote_rates = quote/PLN
+          - cross rate  = base/PLN ÷ quote/PLN = base/quote
+        """
         if self.base == "PLN":
+            # PLN/quote = 1 / (quote/PLN)
             quote_map = {d: v for d, v in quote_rates}
             return [(d, 1.0 / quote_map[d]) for d in sorted(quote_map.keys())]
 
         if self.quote == "PLN":
+            # base/PLN directly from NBP
             base_map = {d: v for d, v in base_rates}
             return [(d, base_map[d]) for d in sorted(base_map.keys())]
 
+        # general cross rate: base/quote via PLN
         base_map = {d: v for d, v in base_rates}
         quote_map = {d: v for d, v in quote_rates}
 
         common_dates = sorted(set(base_map.keys()) & set(quote_map.keys()))
         return [(d, base_map[d] / quote_map[d]) for d in common_dates]
 
-    def daily_changes(self, series: list[tuple[datetime, float]]) -> list[tuple[datetime, float]]:
+    def compute_daily_changes(
+        self, series: list[tuple[datetime, float]]
+    ) -> list[float]:
         """
-        Returns list of (date, change) where change = rate(today) - rate(yesterday)
+        Returns list of daily changes: rate(today) - rate(yesterday).
+        Each value represents one trading session's movement.
         """
-        changes = []
-        for i in range(1, len(series)):
-            date_today, rate_today = series[i]
-            _, rate_yesterday = series[i - 1]
-            changes.append((date_today, rate_today - rate_yesterday))
-        return changes
-
-    def get_period_key(self, date: datetime) -> tuple[int, int]:
-        """
-        Returns (year, month) for monthly
-        Returns (year, quarter) for quarterly
-        """
-        if self.aggregation_type == AggregationType.MONTHLY:
-            return (date.year, date.month)
-
-        quarter = (date.month - 1) // 3 + 1
-        return (date.year, quarter)
-
-    def aggregate_changes(self, changes: list[tuple[datetime, float]]) -> list[float]:
-        """
-        Aggregate daily changes into monthly or quarterly sums.
-        Returns list of aggregated values.
-        """
-        aggregated = {}
-        for date, change in changes:
-            key = self.get_period_key(date)
-            aggregated[key] = aggregated.get(key, 0.0) + change
-
-        return [aggregated[k] for k in sorted(aggregated.keys())]
+        return [
+            series[i][1] - series[i - 1][1]
+            for i in range(1, len(series))
+        ]
 
     def build_histogram(self, values: list[float]) -> list[tuple[float, float, int]]:
         """
-        Build histogram based on number_of_intervals.
-        Returns list of (interval_start, interval_end, frequency)
+        Builds a frequency histogram over daily changes.
+        Divides [min, max] into number_of_intervals equal bins.
+        Returns list of (interval_start, interval_end, frequency).
+        Frequencies sum to len(values).
         """
         if not values:
             raise ValueError("No values to build histogram.")
@@ -273,22 +237,18 @@ class CERCAS:
         max_v = max(values)
 
         if min_v == max_v:
-            single_bin = [(min_v, max_v, 0) for _ in range(self.number_of_intervals)]
-            single_bin[0] = (min_v, max_v, len(values))  # all values fall in first bin
-            return single_bin
+            raise ValueError(
+                "All daily changes are identical — histogram is trivial."
+            )
 
         step = (max_v - min_v) / self.number_of_intervals
 
-        bins = []
-        for i in range(self.number_of_intervals):
-            start = min_v + i * step
-            end = min_v + (i + 1) * step
-            bins.append([start, end, 0])
+        bins = [[min_v + i * step, min_v + (i + 1) * step, 0]
+                for i in range(self.number_of_intervals)]
 
         for v in values:
             idx = int((v - min_v) / step)
-            if idx == self.number_of_intervals:
-                idx -= 1
+            idx = min(idx, self.number_of_intervals - 1)
             bins[idx][2] += 1
 
         return [(b[0], b[1], b[2]) for b in bins]
